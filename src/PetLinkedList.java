@@ -61,4 +61,17 @@ public class PetLinkedList {
         }
         return removed;
     }
+
+    public List<Pet> findByOwner(String ownerUsername) {
+        List<Pet> out = new ArrayList<>();
+        for (Node c = head; c != null; c = c.next)
+            if (c.pet.getOwnerUsername().equals(ownerUsername)) out.add(c.pet);
+        return out;
+    }
+
+    public List<Pet> toList() {
+        List<Pet> out = new ArrayList<>();
+        for (Node c = head; c != null; c = c.next) out.add(c.pet);
+        return out;
+    }
 }
