@@ -7,9 +7,11 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class AuthService {
+    private static final int MAX_ATTEMPTS = 3;
 
     private final Map<String, User> users = new HashMap<>();
     private User currentUser;
+    private int failedAttempts;
 
     public void loadUsers(Map<String, User> loaded) {
         users.clear();
@@ -46,8 +48,10 @@ public class AuthService {
         String attempt = hash(password, salt);
         if (u != null && constantTimeEquals(attempt, u.getPasswordHash())) {
             currentUser = u;
+            failedAttempts = 0;
             return u;
         }
+        failedAttempts++;
         return null;
     }
 
@@ -61,6 +65,18 @@ public class AuthService {
 
     public User getCurrentUser() {
         return currentUser;
+    }
+
+    public boolean lockedOut() {
+        return failedAttempts >= MAX_ATTEMPTS;
+    }
+
+    public void resetFailedAttempts() {
+        failedAttempts = 0;
+    }
+
+    public int attemptsLeft() {
+        return Math.max(0, MAX_ATTEMPTS - failedAttempts);
     }
 
     public static String newSalt() {
