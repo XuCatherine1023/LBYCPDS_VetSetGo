@@ -4,7 +4,7 @@ import java.util.List;
 import java.util.Scanner;
 
 public class Main {
-
+    /** Clinic staff code required to create a veterinarian account. Change before deploying. */
     private static final String VET_ACCESS_CODE = "VETSETGO2026";
 
     private static final Scanner in = new Scanner(System.in);
@@ -37,6 +37,32 @@ public class Main {
         }
         saveAll();
         System.out.println("Data saved. Goodbye!");
+    }
+
+    private static void loadAll() {
+        try {
+            if (storage.usersFileExists()) {
+                auth.loadUsers(storage.loadUsers());
+            }
+            if (auth.getUsers().isEmpty()) {
+                // First run: create a default vet so someone can log in.
+                auth.register("vet", "Default Veterinarian", Role.VETERINARIAN, "vet123");
+                System.out.println("First run: default vet account created (username: vet, password: vet123). Change it!");
+            }
+            pets = storage.loadPets();
+            nextPetId = pets.maxId() + 1;
+        } catch (IOException e) {
+            System.err.println("Could not read saved data: " + e.getMessage());
+        }
+    }
+
+    private static void saveAll() {
+        try {
+            storage.saveUsers(auth.getUsers());
+            storage.savePets(pets);
+        } catch (IOException e) {
+            System.err.println("ERROR: could not save data: " + e.getMessage());
+        }
     }
 
     private static boolean doLogin(Role portal) {
@@ -223,3 +249,16 @@ public class Main {
         if (list.isEmpty()) { System.out.println("No pets found."); return; }
         for (Pet p : list) System.out.println(p);
     }
+
+    private static String prompt(String msg) {
+        System.out.print(msg);
+        return in.hasNextLine() ? in.nextLine().trim() : "0";
+    }
+
+    /** Hides typing when run from a real terminal; falls back to plain input in IDEs. */
+    private static String promptPassword(String msg) {
+        Console c = System.console();
+        if (c != null) return new String(c.readPassword(msg));
+        return prompt(msg);
+    }
+}
