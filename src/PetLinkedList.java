@@ -36,4 +36,29 @@ public class PetLinkedList {
         }
         return false;
     }
+
+    public int removeByOwner(String ownerUsername) {
+        int removed = 0;
+        while (head != null && head.pet.getOwnerUsername().equals(ownerUsername)) {
+            head = head.next;
+            size--;
+            removed++;
+        }
+        if (head == null) {
+            tail = null;
+            return removed;
+        }
+        Node prev = head;
+        for (Node c = head.next; c != null; c = c.next) {
+            if (c.pet.getOwnerUsername().equals(ownerUsername)) {
+                prev.next = c.next;
+                if (c == tail) tail = prev;
+                size--;
+                removed++;
+            } else {
+                prev = c;
+            }
+        }
+        return removed;
+    }
 }
