@@ -38,3 +38,68 @@ public class Main {
         saveAll();
         System.out.println("Data saved. Goodbye!");
     }
+
+    private static boolean doLogin(Role portal) {
+        System.out.println("\n--- " + portalName(portal) + " Login ---");
+        auth.resetFailedAttempts();
+        while (!auth.lockedOut()) {
+            String username = prompt("Username: ");
+            String password = promptPassword("Password: ");
+            User u = auth.login(username, password);
+            if (u == null) {
+                System.out.println("Invalid username or password. Attempts left: " + auth.attemptsLeft());
+            } else if (u.getRole() != portal) {
+                // Credentials were correct, but this account belongs to the other portal.
+                auth.logout();
+                System.out.println("This account is a " + portalName(u.getRole())
+                        + " account. Please use the " + portalName(u.getRole()) + " Login.");
+                return false;
+            } else {
+                System.out.println("\nLogin successful. Welcome, " + u.getFullName() + " [" + u.getRole() + "]");
+                return true;
+            }
+        }
+        System.out.println("Too many failed attempts. Returning to the main screen.");
+        return false;
+    }
+
+    private static void doRegister(Role role) {
+        System.out.println("\n--- Create " + portalName(role) + " Account ---");
+        if (role == Role.VETERINARIAN) {
+            String code = promptPassword("Clinic access code: ");
+            if (!code.equals(VET_ACCESS_CODE)) {
+                System.out.println("Incorrect clinic access code. Account not created.");
+                return;
+            }
+        }
+        String username = prompt("Choose a username: ");
+        if (username.isEmpty() || username.contains(" ")) {
+            System.out.println("Username cannot be empty or contain spaces.");
+            return;
+        }
+        if (auth.usernameTaken(username)) {
+            System.out.println("That username is already taken.");
+            return;
+        }
+        String name = prompt("Full name: ");
+        if (name.isEmpty()) {
+            System.out.println("Full name cannot be empty.");
+            return;
+        }
+        String pw = promptPassword("Password (min 6 chars): ");
+        if (pw.length() < 6) {
+            System.out.println("Password too short.");
+            return;
+        }
+        if (!pw.equals(promptPassword("Confirm password: "))) {
+            System.out.println("Passwords do not match.");
+            return;
+        }
+        auth.register(username, name, role, pw);
+        saveAll();                                           // persist right away
+        System.out.println(portalName(role) + " account created. You can now log in.");
+    }
+
+    private static String portalName(Role role) {
+        return role == Role.VETERINARIAN ? "Veterinarian" : "Pet Owner";
+    }
