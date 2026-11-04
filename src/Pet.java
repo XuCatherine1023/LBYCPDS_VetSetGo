@@ -21,4 +21,15 @@ public class Pet {
     public int getAge()              { return age; }
     public double getWeight()        { return weight; }
     public String getOwnerUsername() { return ownerUsername; }
+
+    public void setName(String name)       { this.name = name; }
+    public void setSpecies(String species) { this.species = species; }
+    public void setAge(int age)            { this.age = age; }
+    public void setWeight(double weight)   { this.weight = weight; }
+
+    @Override
+    public String toString() {
+        return String.format("#%d %s | %s | %d yr | %.1f kg | owner: %s",
+                id, name, species, age, weight, ownerUsername);
+    }
 }
