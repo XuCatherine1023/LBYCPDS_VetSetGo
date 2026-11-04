@@ -14,4 +14,11 @@ public class Pet {
         this.weight = weight;
         this.ownerUsername = ownerUsername;
     }
+
+    public int getId()               { return id; }
+    public String getName()          { return name; }
+    public String getSpecies()       { return species; }
+    public int getAge()              { return age; }
+    public double getWeight()        { return weight; }
+    public String getOwnerUsername() { return ownerUsername; }
 }
