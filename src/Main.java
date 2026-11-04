@@ -150,3 +150,76 @@ public class Main {
         auth.logout();
         System.out.println("Logged out.");
     }
+
+    private static void deleteOwnAccount() {
+        User me = auth.getCurrentUser();
+        System.out.println("\nWARNING: this permanently deletes your account and all your pets' records.");
+        String pw = promptPassword("Enter your password to confirm: ");
+        if (!auth.verifyPassword(me, pw)) {
+            System.out.println("Incorrect password. Account not deleted.");
+            return;
+        }
+        if (!prompt("Type DELETE to confirm: ").equals("DELETE")) {
+            System.out.println("Cancelled. Account not deleted.");
+            return;
+        }
+        int removedPets = pets.removeByOwner(me.getUsername());
+        auth.deleteUser(me.getUsername());
+        logout();                                   // saves files and ends the session
+        System.out.println("Your account and " + removedPets + " pet record(s) were deleted.");
+    }
+
+    private static void deleteOwnerAccountAsVet() {
+        String username = prompt("Username of the pet owner to delete: ").toLowerCase();
+        User target = auth.getUsers().get(username);
+        if (target == null) {
+            System.out.println("No account with that username.");
+            return;
+        }
+        if (target.getRole() != Role.PET_OWNER) {
+            System.out.println("Only pet owner accounts can be deleted here.");
+            return;
+        }
+        int petCount = pets.findByOwner(username).size();
+        System.out.println("This will delete " + target + " and " + petCount + " pet record(s).");
+        if (!prompt("Type DELETE to confirm: ").equals("DELETE")) {
+            System.out.println("Cancelled.");
+            return;
+        }
+        pets.removeByOwner(username);
+        auth.deleteUser(username);
+        saveAll();
+        System.out.println("Account deleted.");
+    }
+
+    private static void addPet() {
+        try {
+            String name = prompt("Pet name: ");
+            String species = prompt("Species: ");
+            int age = Integer.parseInt(prompt("Age (years): "));
+            double weight = Double.parseDouble(prompt("Weight (kg): "));
+            if (name.isEmpty() || species.isEmpty() || age < 0 || weight <= 0) {
+                System.out.println("Invalid pet details.");
+                return;
+            }
+            Pet p = new Pet(nextPetId++, name, species, age, weight, auth.getCurrentUser().getUsername());
+            pets.add(p);
+            System.out.println("Added: " + p);
+        } catch (NumberFormatException e) {
+            System.out.println("Age and weight must be numbers.");
+        }
+    }
+
+    private static void deletePet() {
+        try {
+            int id = Integer.parseInt(prompt("Pet ID to delete: "));
+            System.out.println(pets.removeById(id) ? "Deleted." : "No pet with that ID.");
+        } catch (NumberFormatException e) {
+            System.out.println("ID must be a number.");
+        }
+    }
+
+    private static void printPets(List<Pet> list) {
+        if (list.isEmpty()) { System.out.println("No pets found."); return; }
+        for (Pet p : list) System.out.println(p);
+    }
