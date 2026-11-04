@@ -103,3 +103,50 @@ public class Main {
     private static String portalName(Role role) {
         return role == Role.VETERINARIAN ? "Veterinarian" : "Pet Owner";
     }
+
+    private static void sessionLoop() {
+        while (auth.isLoggedIn()) {
+            if (auth.getCurrentUser().getRole() == Role.VETERINARIAN) vetMenu();
+            else ownerMenu();
+        }
+    }
+
+    private static void vetMenu() {
+        System.out.println("\n--- Veterinarian Menu ---");
+        System.out.println("[1] View all pets");
+        System.out.println("[2] Delete a pet");
+        System.out.println("[3] Schedule / Queue / Records  (TODO)");
+        System.out.println("[4] Delete a pet owner account");
+        System.out.println("[0] Logout");
+        switch (prompt("Choice: ")) {
+            case "1": printPets(pets.toList()); break;
+            case "2": deletePet(); break;
+            case "3": System.out.println("Coming soon."); break;
+            case "4": deleteOwnerAccountAsVet(); break;
+            case "0": logout(); break;
+            default:  System.out.println("Invalid choice.");
+        }
+    }
+
+    private static void ownerMenu() {
+        System.out.println("\n--- Pet Owner Menu ---");
+        System.out.println("[1] View my pets");
+        System.out.println("[2] Add a pet");
+        System.out.println("[3] Book appointment / Fees  (TODO)");
+        System.out.println("[4] Delete my account");
+        System.out.println("[0] Logout");
+        switch (prompt("Choice: ")) {
+            case "1": printPets(pets.findByOwner(auth.getCurrentUser().getUsername())); break;
+            case "2": addPet(); break;
+            case "3": System.out.println("Coming soon."); break;
+            case "4": deleteOwnAccount(); break;
+            case "0": logout(); break;
+            default:  System.out.println("Invalid choice.");
+        }
+    }
+
+    private static void logout() {
+        saveAll();               // persist whenever someone logs out
+        auth.logout();
+        System.out.println("Logged out.");
+    }
