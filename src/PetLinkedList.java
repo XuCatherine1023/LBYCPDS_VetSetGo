@@ -74,4 +74,13 @@ public class PetLinkedList {
         for (Node c = head; c != null; c = c.next) out.add(c.pet);
         return out;
     }
+
+    public int size() { return size; }
+    public boolean isEmpty() { return size == 0; }
+
+    public int maxId() {
+        int max = 0;
+        for (Node c = head; c != null; c = c.next) max = Math.max(max, c.pet.getId());
+        return max;
+    }
 }
