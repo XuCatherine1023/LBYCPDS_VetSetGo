@@ -9,6 +9,7 @@ import java.util.Map;
 public class AuthService {
 
     private final Map<String, User> users = new HashMap<>();
+    private User currentUser;
 
     public void loadUsers(Map<String, User> loaded) {
         users.clear();
@@ -37,6 +38,29 @@ public class AuthService {
 
     public boolean verifyPassword(User user, String password) {
         return constantTimeEquals(hash(password, user.getSalt()), user.getPasswordHash());
+    }
+
+    public User login(String username, String password) {
+        User u = users.get(username.trim().toLowerCase());
+        String salt = (u != null) ? u.getSalt() : "x";
+        String attempt = hash(password, salt);
+        if (u != null && constantTimeEquals(attempt, u.getPasswordHash())) {
+            currentUser = u;
+            return u;
+        }
+        return null;
+    }
+
+    public void logout() {
+        currentUser = null;
+    }
+
+    public boolean isLoggedIn() {
+        return currentUser != null;
+    }
+
+    public User getCurrentUser() {
+        return currentUser;
     }
 
     public static String newSalt() {
