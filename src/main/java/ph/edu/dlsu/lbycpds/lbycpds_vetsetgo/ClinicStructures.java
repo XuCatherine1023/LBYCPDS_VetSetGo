@@ -69,4 +69,37 @@ public class ClinicStructures {
             }
         }
     }
+
+    public static class SpeciesBreedTree {
+        class TreeNode {
+            String name;
+            List<TreeNode> children = new ArrayList<>();
+            TreeNode(String name) { this.name = name; }
+        }
+        private TreeNode root = new TreeNode("Animals");
+
+        public void addSpeciesAndBreed(String species, String breed) {
+            TreeNode speciesNode = null;
+            for (TreeNode child : root.children) {
+                if (child.name.equalsIgnoreCase(species)) { speciesNode = child; break; }
+            }
+            if (speciesNode == null) {
+                speciesNode = new TreeNode(species);
+                root.children.add(speciesNode);
+            }
+            speciesNode.children.add(new TreeNode(breed));
+        }
+
+        public boolean searchHierarchy(String target) {
+            return searchRec(root, target);
+        }
+
+        private boolean searchRec(TreeNode node, String target) {
+            if (node.name.equalsIgnoreCase(target)) return true;
+            for (TreeNode child : node.children) {
+                if (searchRec(child, target)) return true;
+            }
+            return false;
+        }
+    }
 }
