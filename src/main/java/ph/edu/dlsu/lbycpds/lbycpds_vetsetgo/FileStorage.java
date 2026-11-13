@@ -67,3 +67,24 @@ public class FileStorage {
         }
         writeRecords(petsFile, rows);
     }
+
+    public List<Appointment> loadAppointments() throws IOException {
+        List<Appointment> list = new ArrayList<>();
+        for (String[] f : readRecords(appointmentsFile, 4)) {
+            try {
+                list.add(new Appointment(f[0], f[1], Integer.parseInt(f[2]), Integer.parseInt(f[3])));
+            } catch (NumberFormatException e) {
+                System.err.println("Skipping corrupt appointment");
+            }
+        }
+        return list;
+    }
+
+    public void saveAppointments(List<Appointment> appointments) throws IOException {
+        List<String[]> rows = new ArrayList<>();
+        for (Appointment a : appointments) {
+            // FIXED: Now properly extracts actual case type and severity instead of hardcoding
+            rows.add(new String[]{a.getPetName(), a.getCaseType(), String.valueOf(a.getSeverityLevel()), String.valueOf(a.getTimeSlot())});
+        }
+        writeRecords(appointmentsFile, rows);
+    }
