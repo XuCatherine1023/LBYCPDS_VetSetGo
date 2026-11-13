@@ -94,3 +94,50 @@ public class VetSetGoGUI extends Application {
         return new Scene(root, 900, 600);
     }
 
+    private Scene buildSignupScene() {
+        BorderPane root = new BorderPane();
+        root.setStyle(BG_LIGHT);
+        root.setTop(buildNavBar());
+
+        VBox formWrap = new VBox(15);
+        formWrap.setPadding(new Insets(40));
+        formWrap.setStyle(CARD_STYLE);
+        formWrap.setMaxWidth(450);
+
+        Label title = new Label("Create a VetSetGo Account");
+        title.setFont(Font.font("System", FontWeight.BOLD, 24));
+
+        ComboBox<Role> roleBox = new ComboBox<>();
+        roleBox.getItems().addAll(Role.PET_OWNER, Role.VETERINARIAN);
+        roleBox.setValue(Role.PET_OWNER);
+        roleBox.setMaxWidth(Double.MAX_VALUE);
+
+        TextField nameField = new TextField(); nameField.setPromptText("Full Name");
+        TextField emailField = new TextField(); emailField.setPromptText("Email Address");
+        TextField phoneField = new TextField(); phoneField.setPromptText("Phone Number");
+        PasswordField passField = new PasswordField(); passField.setPromptText("Password");
+
+        Button signupBtn = new Button("Sign Up");
+        signupBtn.setStyle(BTN_PRIMARY);
+        signupBtn.setMaxWidth(Double.MAX_VALUE);
+        Button backBtn = new Button("Already have an account? Login here");
+        backBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #0d6efd; -fx-underline: true;");
+
+        signupBtn.setOnAction(e -> {
+            if (auth.register(nameField.getText(), nameField.getText(), roleBox.getValue(), passField.getText())) {
+                showAlert("Success", "Account created! Please login.");
+                window.setScene(buildLoginScene());
+            } else {
+                showAlert("Error", "Registration failed. Check inputs.");
+            }
+        });
+        backBtn.setOnAction(e -> window.setScene(buildLoginScene()));
+
+        formWrap.getChildren().addAll(title, new Label("Role"), roleBox, new Label("Full Name"), nameField,
+                new Label("Email Address"), emailField, new Label("Phone Number"), phoneField,
+                new Label("Password"), passField, signupBtn, backBtn);
+        root.setCenter(formWrap);
+        return new Scene(root, 900, 650);
+    }
+}
+
