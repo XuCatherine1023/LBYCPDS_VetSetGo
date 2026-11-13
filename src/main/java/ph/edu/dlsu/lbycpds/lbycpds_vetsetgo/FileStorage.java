@@ -88,3 +88,73 @@ public class FileStorage {
         }
         writeRecords(appointmentsFile, rows);
     }
+
+    private List<String[]> readRecords(Path file, int expectedFields) throws IOException {
+        List<String[]> rows = new ArrayList<>();
+        if (!Files.exists(file)) return rows;
+        try (BufferedReader br = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                if (line.isBlank()) continue;
+                String[] f = splitEscaped(line);
+                if (f.length >= expectedFields) rows.add(f);
+            }
+        }
+        return rows;
+    }
+
+    private void writeRecords(Path file, List<String[]> rows) throws IOException {
+        Files.createDirectories(dir);
+        Path tmp = file.resolveSibling(file.getFileName() + ".tmp");
+        try (BufferedWriter bw = Files.newBufferedWriter(tmp, StandardCharsets.UTF_8)) {
+            for (String[] row : rows) {
+                StringBuilder sb = new StringBuilder();
+                for (int i = 0; i < row.length; i++) {
+                    if (i > 0) sb.append('|');
+                    sb.append(escape(row[i]));
+                }
+                bw.write(sb.toString());
+                bw.newLine();
+            }
+        }
+        Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING);
+    }
+
+    static String escape(String s) {
+        StringBuilder sb = new StringBuilder();
+        for (char c : s.toCharArray()) {
+            switch (c) {
+                case '\\': sb.append("\\\\"); break;
+                case '|':  sb.append("\\p");  break;
+                case '\n': sb.append("\\n");  break;
+                case '\r': sb.append("\\r");  break;
+                default:   sb.append(c);
+            }
+        }
+        return sb.toString();
+    }
+
+    static String[] splitEscaped(String line) {
+        List<String> fields = new ArrayList<>();
+        StringBuilder cur = new StringBuilder();
+        for (int i = 0; i < line.length(); i++) {
+            char c = line.charAt(i);
+            if (c == '\\' && i + 1 < line.length()) {
+                char n = line.charAt(++i);
+                switch (n) {
+                    case 'p':  cur.append('|');  break;
+                    case 'n':  cur.append('\n'); break;
+                    case 'r':  cur.append('\r'); break;
+                    default:   cur.append(n);
+                }
+            } else if (c == '|') {
+                fields.add(cur.toString());
+                cur.setLength(0);
+            } else {
+                cur.append(c);
+            }
+        }
+        fields.add(cur.toString());
+        return fields.toArray(new String[0]);
+    }
+}
