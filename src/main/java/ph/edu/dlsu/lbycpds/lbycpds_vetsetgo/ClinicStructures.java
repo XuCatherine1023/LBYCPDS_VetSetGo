@@ -170,4 +170,35 @@ public class ClinicStructures {
             inOrderRec(node.right, resultList);
         }
     }
+
+    public static class SymptomGraph {
+        private Map<String, List<String>> adjList = new HashMap<>();
+
+        public void addEdge(String from, String to) {
+            adjList.putIfAbsent(from, new ArrayList<>());
+            adjList.get(from).add(to);
+        }
+
+        public List<String> bfs(String start) {
+            List<String> result = new ArrayList<>();
+            if (!adjList.containsKey(start)) return result;
+
+            Set<String> visited = new HashSet<>();
+            Queue<String> queue = new LinkedList<>();
+            queue.add(start);
+            visited.add(start);
+
+            while (!queue.isEmpty()) {
+                String node = queue.poll();
+                result.add(node);
+                for (String neighbor : adjList.getOrDefault(node, new ArrayList<>())) {
+                    if (!visited.contains(neighbor)) {
+                        visited.add(neighbor);
+                        queue.add(neighbor);
+                    }
+                }
+            }
+            return result;
+        }
+    }
 }
