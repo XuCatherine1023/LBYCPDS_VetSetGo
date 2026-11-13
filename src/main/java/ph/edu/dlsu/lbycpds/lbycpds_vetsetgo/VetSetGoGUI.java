@@ -41,3 +41,14 @@ public class VetSetGoGUI extends Application {
 
     private final int[] clinicTimeSlots = {900, 1000, 1100, 1300, 1400, 1500, 1600};
 
+    @Override
+    public void start(Stage primaryStage) {
+        this.window = primaryStage;
+        initClinicData();
+        loadSavedData();
+
+        window.setTitle("VetSetGo | PetPulse System");
+        window.setOnCloseRequest(e -> saveAllData());
+        window.setScene(buildLoginScene());
+        window.show();
+    }
