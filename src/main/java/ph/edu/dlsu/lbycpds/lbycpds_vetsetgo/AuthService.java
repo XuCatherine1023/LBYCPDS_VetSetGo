@@ -1,3 +1,5 @@
+package ph.edu.dlsu.lbycpds.lbycpds_vetsetgo;
+
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;

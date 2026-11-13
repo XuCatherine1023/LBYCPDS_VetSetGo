@@ -1,3 +1,5 @@
+package ph.edu.dlsu.lbycpds.lbycpds_vetsetgo;
+
 public class User {
     private final String username;
     private final String fullName;

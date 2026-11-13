@@ -1,3 +1,5 @@
+package ph.edu.dlsu.lbycpds.lbycpds_vetsetgo;
+
 public enum Role {
     VETERINARIAN,
     PET_OWNER;
