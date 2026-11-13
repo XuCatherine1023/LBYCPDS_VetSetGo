@@ -1,4 +1,4 @@
-package ph.edu.dlsu.lbycpds.lbycpds_vetsetgod;
+package ph.edu.dlsu.lbycpds.lbycpds_vetsetgo;
 
 import java.util.Collections;
 import java.util.List;
