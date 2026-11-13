@@ -1,3 +1,8 @@
+package ph.edu.dlsu.lbycpds.lbycpds_vetsetgo;
+
+import java.util.ArrayList;
+import java.util.List;
+
 public class Pet {
     private final int id;
     private String name;
@@ -5,6 +10,7 @@ public class Pet {
     private int age;
     private double weight;
     private final String ownerUsername;
+    private List<String> medicalHistory; // Added for medical logs
 
     public Pet(int id, String name, String species, int age, double weight, String ownerUsername) {
         this.id = id;
@@ -13,6 +19,7 @@ public class Pet {
         this.age = age;
         this.weight = weight;
         this.ownerUsername = ownerUsername;
+        this.medicalHistory = new ArrayList<>();
     }
 
     public int getId()               { return id; }
@@ -21,11 +28,16 @@ public class Pet {
     public int getAge()              { return age; }
     public double getWeight()        { return weight; }
     public String getOwnerUsername() { return ownerUsername; }
+    public List<String> getMedicalHistory() { return medicalHistory; }
 
     public void setName(String name)       { this.name = name; }
     public void setSpecies(String species) { this.species = species; }
     public void setAge(int age)            { this.age = age; }
     public void setWeight(double weight)   { this.weight = weight; }
+    public void addMedicalRecord(String record) { this.medicalHistory.add(record); }
+
+    // Used for deserialization
+    public void setMedicalHistory(List<String> history) { this.medicalHistory = history; }
 
     @Override
     public String toString() {
