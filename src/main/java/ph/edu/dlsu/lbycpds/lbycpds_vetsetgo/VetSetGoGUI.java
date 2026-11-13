@@ -52,3 +52,45 @@ public class VetSetGoGUI extends Application {
         window.setScene(buildLoginScene());
         window.show();
     }
+
+    private Scene buildLoginScene() {
+        BorderPane root = new BorderPane();
+        root.setStyle(BG_LIGHT);
+        root.setTop(buildNavBar());
+
+        VBox formWrap = new VBox(15);
+        formWrap.setPadding(new Insets(40));
+        formWrap.setStyle(CARD_STYLE);
+        formWrap.setMaxWidth(400);
+
+        Label title = new Label("Portal Login");
+        title.setFont(Font.font("System", FontWeight.BOLD, 24));
+        Label sub = new Label("Good to see you again. Sign in to book visits.");
+        sub.setWrapText(true);
+
+        TextField userField = new TextField(); userField.setPromptText("User ID");
+        PasswordField passField = new PasswordField(); passField.setPromptText("Password");
+
+        Button loginBtn = new Button("Sign In");
+        loginBtn.setStyle(BTN_PRIMARY);
+        loginBtn.setMaxWidth(Double.MAX_VALUE);
+
+        Button signupBtn = new Button("Don't have an account? Sign up here");
+        signupBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #0d6efd; -fx-underline: true;");
+
+        loginBtn.setOnAction(e -> {
+            User u = auth.login(userField.getText(), passField.getText());
+            if (u != null) {
+                window.setScene(u.getRole() == Role.PET_OWNER ? buildOwnerDashboard(u) : buildVetDashboard(u));
+            } else {
+                showAlert("Login Failed", "Invalid credentials.");
+            }
+        });
+
+        signupBtn.setOnAction(e -> window.setScene(buildSignupScene()));
+
+        formWrap.getChildren().addAll(title, sub, new Label("User ID"), userField, new Label("Password"), passField, loginBtn, signupBtn);
+        root.setCenter(formWrap);
+        return new Scene(root, 900, 600);
+    }
+
