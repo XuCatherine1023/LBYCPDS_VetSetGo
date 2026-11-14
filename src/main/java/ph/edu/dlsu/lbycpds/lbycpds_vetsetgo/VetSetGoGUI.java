@@ -283,6 +283,7 @@ public class VetSetGoGUI extends Application {
         root.setCenter(new ScrollPane(content));
         return new Scene(root, 1000, 850);
     }
+
     private Scene buildPetProfileScene(Pet pet, User user) {
         BorderPane root = new BorderPane();
         root.setStyle(BG_LIGHT);
@@ -366,4 +367,220 @@ public class VetSetGoGUI extends Application {
         root.setCenter(new ScrollPane(content));
         return new Scene(root, 900, 750);
     }
+
+    private Scene buildVetDashboard(User user) {
+        BorderPane root = new BorderPane();
+        root.setStyle(BG_LIGHT);
+        root.setTop(buildNavBar(user));
+
+        VBox content = new VBox(20);
+        content.setPadding(new Insets(20));
+
+        Label welcome = new Label("Veterinarian Dashboard | Dr. " + user.getFullName());
+        welcome.setFont(Font.font("System", FontWeight.BOLD, 22));
+
+        HBox split = new HBox(20);
+
+        VBox queueCard = new VBox(15);
+        queueCard.setStyle(CARD_STYLE); queueCard.setPadding(new Insets(20)); queueCard.setPrefWidth(350);
+        Label qTitle = new Label("📅 Serve Next Patient"); qTitle.setFont(Font.font("System", FontWeight.BOLD, 16));
+        TextArea qLog = new TextArea(); qLog.setEditable(false); qLog.setPrefHeight(80);
+        Button serveBtn = new Button("Call Next Patient"); serveBtn.setStyle(BTN_PRIMARY);
+
+        VBox bfsCard = new VBox(15);
+        bfsCard.setStyle(CARD_STYLE); bfsCard.setPadding(new Insets(20)); HBox.setHgrow(bfsCard, Priority.ALWAYS);
+        Label bfsTitle = new Label("🩺 BFS Symptom & Fee Estimator"); bfsTitle.setFont(Font.font("System", FontWeight.BOLD, 16));
+        HBox bfsForm = new HBox(10);
+        ComboBox<String> symptomBox = new ComboBox<>();
+        symptomBox.getItems().addAll("Lethargy", "Bleeding", "Fracture", "Bad Breath");
+        Button runBfsBtn = new Button("Run BFS Diagnostics"); runBfsBtn.setStyle(BTN_OUTLINE);
+        TextArea bfsLog = new TextArea(); bfsLog.setEditable(false); bfsLog.setPrefHeight(80);
+
+        runBfsBtn.setOnAction(e -> {
+            List<String> path = symptomGraph.bfs(symptomBox.getValue());
+            StringBuilder sb = new StringBuilder("Path: " + String.join(" -> ", path) + "\nFees:\n");
+            for (String node : path) {
+                if (serviceFees.containsKey(node)) sb.append(node).append(": ₱").append(serviceFees.get(node)).append("\n");
+            }
+            bfsLog.setText(sb.toString());
+        });
+        bfsForm.getChildren().addAll(symptomBox, runBfsBtn);
+        bfsCard.getChildren().addAll(bfsTitle, bfsForm, bfsLog);
+        split.getChildren().addAll(queueCard, bfsCard);
+
+        VBox triageCard = new VBox(15);
+        triageCard.setStyle(CARD_STYLE); triageCard.setPadding(new Insets(20));
+        Label triageTitle = new Label("🚨 Triage & Book Patient"); triageTitle.setFont(Font.font("System", FontWeight.BOLD, 16));
+        HBox triageForm = new HBox(10);
+        TextField tPet = new TextField(); tPet.setPromptText("Pet Name");
+
+        ComboBox<String> typeBox = new ComboBox<>();
+        typeBox.getItems().addAll("Routine", "Urgent", "Surgical");
+        typeBox.setValue("Urgent");
+
+        ComboBox<Integer> sevBox = new ComboBox<>();
+        sevBox.getItems().addAll(1, 2, 3, 4, 5);
+        sevBox.setValue(3);
+        sevBox.setPromptText("Severity");
+
+        ComboBox<Integer> slotBox = new ComboBox<>();
+        for (int s : clinicTimeSlots) slotBox.getItems().add(s);
+        slotBox.setPromptText("Time Slot");
+
+        Button tBookBtn = new Button("Add to Queue"); tBookBtn.setStyle(BTN_PRIMARY);
+        triageForm.getChildren().addAll(tPet, typeBox, sevBox, slotBox, tBookBtn);
+        triageCard.getChildren().addAll(triageTitle, triageForm);
+
+        VBox scheduleCard = new VBox(10);
+        scheduleCard.setStyle(CARD_STYLE); scheduleCard.setPadding(new Insets(20));
+        Label schedTitle = new Label("📋 Full Daily Appointments Schedule"); schedTitle.setFont(Font.font("System", FontWeight.BOLD, 16));
+
+        TableView<Appointment> schedTable = new TableView<>();
+        TableColumn<Appointment, Integer> timeCol = new TableColumn<>("Time Slot"); timeCol.setCellValueFactory(new PropertyValueFactory<>("timeSlot"));
+        TableColumn<Appointment, String> petCol = new TableColumn<>("Pet Name"); petCol.setCellValueFactory(new PropertyValueFactory<>("petName"));
+        TableColumn<Appointment, String> typeCol = new TableColumn<>("Case Type"); typeCol.setCellValueFactory(new PropertyValueFactory<>("caseType"));
+        TableColumn<Appointment, Integer> sevCol = new TableColumn<>("Severity"); sevCol.setCellValueFactory(new PropertyValueFactory<>("severityLevel"));
+        schedTable.getColumns().addAll(timeCol, petCol, typeCol, sevCol);
+        schedTable.setPrefHeight(250);
+
+        Runnable refreshSchedule = () -> {
+            List<Appointment> list = new ArrayList<>(allAppointments);
+            if (!list.isEmpty()) ClinicAlgorithms.quickSortAppointments(list, 0, list.size() - 1);
+            schedTable.getItems().setAll(list);
+        };
+        refreshSchedule.run();
+
+        tBookBtn.setOnAction(e -> {
+            if(slotBox.getValue() == null) { showAlert("Error", "Select a time slot"); return; }
+            Appointment apt = new Appointment(tPet.getText(), typeBox.getValue(), sevBox.getValue(), slotBox.getValue());
+            allAppointments.add(apt);
+            if (apt.getTriageScore() >= 50) priorityHeap.insert(apt);
+            else appointmentQueue.enqueue(apt);
+            refreshSchedule.run();
+            undoStack.push(() -> {
+                allAppointments.remove(apt);
+                refreshSchedule.run();
+            });
+            showAlert("Success", "Patient triaged and queued.");
+        });
+
+        serveBtn.setOnAction(e -> {
+            Appointment next = priorityHeap.extractMax();
+            if (next == null) next = appointmentQueue.dequeue();
+            if (next != null) {
+                allAppointments.remove(next);
+                qLog.setText("Serving: " + next.getPetName() + "\nTriage Score: " + next.getTriageScore() + "\nSlot: " + next.getTimeSlot());
+                refreshSchedule.run();
+            } else { qLog.setText("No patients waiting."); }
+        });
+        queueCard.getChildren().addAll(qTitle, serveBtn, qLog);
+        scheduleCard.getChildren().addAll(schedTitle, schedTable);
+
+        HBox searchForm = new HBox(10);
+        TextField searchId = new TextField(); searchId.setPromptText("AVL Search by ID");
+        Button searchIdBtn = new Button("Find ID"); searchIdBtn.setStyle(BTN_PRIMARY);
+        TextField searchName = new TextField(); searchName.setPromptText("Binary Search by Name");
+        Button searchNameBtn = new Button("Find Name"); searchNameBtn.setStyle(BTN_PRIMARY);
+        Button listAvlBtn = new Button("List All Pets (AVL Inorder)"); listAvlBtn.setStyle(BTN_OUTLINE);
+        TextArea searchResultLog = new TextArea(); searchResultLog.setEditable(false); searchResultLog.setPrefHeight(80);
+
+        searchIdBtn.setOnAction(e -> {
+            try {
+                Pet found = petAvlTree.search(Integer.parseInt(searchId.getText()));
+                if (found != null) { recentViewedStack.push(found); window.setScene(buildPetProfileScene(found, user)); }
+                else showAlert("Not Found", "Pet not found in AVL Tree.");
+            } catch (Exception ex) { showAlert("Error", "Invalid ID."); }
+        });
+
+        searchNameBtn.setOnAction(e -> {
+            List<Pet> allPets = petList.toList();
+            ClinicAlgorithms.quickSortPetsByName(allPets, 0, allPets.size()-1);
+            int idx = ClinicAlgorithms.binarySearchPetByName(allPets, searchName.getText());
+            if (idx != -1) { recentViewedStack.push(allPets.get(idx)); window.setScene(buildPetProfileScene(allPets.get(idx), user)); }
+            else showAlert("Not Found", "Pet name not found via Binary Search.");
+        });
+
+        listAvlBtn.setOnAction(e -> {
+            List<Pet> inorderList = new ArrayList<>();
+            petAvlTree.inOrderTraversal(inorderList);
+            StringBuilder sb = new StringBuilder("AVL Inorder Listing:\n");
+            for(Pet p : inorderList) sb.append(p.getId()).append(" - ").append(p.getName()).append("\n");
+            searchResultLog.setText(sb.toString());
+        });
+
+        searchForm.getChildren().addAll(searchId, searchIdBtn, searchName, searchNameBtn, listAvlBtn);
+
+        content.getChildren().addAll(welcome, split, triageCard, scheduleCard, new Label("Search Global Records:"), searchForm, searchResultLog);
+        root.setCenter(new ScrollPane(content));
+        return new Scene(root, 1000, 850);
+    }
+
+    private HBox buildNavBar() { return buildNavBar(null); }
+    private HBox buildNavBar(User user) {
+        HBox nav = new HBox(15);
+        nav.setPadding(new Insets(15, 20, 15, 20));
+        nav.setStyle("-fx-background-color: #0d6efd;");
+        nav.setAlignment(Pos.CENTER_LEFT);
+        Label brand = new Label("🐾 VetSetGo"); brand.setFont(Font.font("System", FontWeight.BOLD, 20)); brand.setTextFill(Color.WHITE);
+        Region spacer = new Region(); HBox.setHgrow(spacer, Priority.ALWAYS);
+        nav.getChildren().addAll(brand, spacer);
+
+        if (user == null) {
+            Button loginBtn = new Button("Login"); loginBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: white; -fx-font-weight: bold;");
+            loginBtn.setOnAction(e -> window.setScene(buildLoginScene())); nav.getChildren().add(loginBtn);
+        } else {
+            Button logoutBtn = new Button("Logout"); logoutBtn.setStyle("-fx-background-color: white; -fx-text-fill: #0d6efd; -fx-font-weight: bold; -fx-background-radius: 4;");
+            logoutBtn.setOnAction(e -> { auth.logout(); window.setScene(buildLoginScene()); }); nav.getChildren().add(logoutBtn);
+        }
+        return nav;
+    }
+
+    private void showAlert(String title, String msg) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION, msg, ButtonType.OK);
+        alert.setTitle(title); alert.setHeaderText(null); alert.showAndWait();
+    }
+
+    private void initClinicData() {
+        serviceFees.put("General Consultation", 500.0);
+        serviceFees.put("Vaccination", 1000.0);
+        serviceFees.put("Surgery", 5000.0);
+        serviceFees.put("Emergency Stabilization", 2500.0);
+
+        symptomGraph.addEdge("Lethargy", "Viral Infection");
+        symptomGraph.addEdge("Bleeding", "Trauma");
+        symptomGraph.addEdge("Trauma", "Emergency Stabilization");
+        symptomGraph.addEdge("Trauma", "Surgery");
+        symptomGraph.addEdge("Bad Breath", "Dental Cleaning");
+    }
+
+    private void loadSavedData() {
+        try {
+            if (storage.usersFileExists()) auth.loadUsers(storage.loadUsers());
+            if (auth.getUsers().isEmpty()) {
+                auth.register("vet", "Dr. Bob Miller", Role.VETERINARIAN, "vet123");
+                auth.register("owner", "Alice Johnson", Role.PET_OWNER, "owner123");
+            }
+            petList = storage.loadPets();
+            nextPetId = petList.maxId() + 1;
+            for (Pet p : petList.toList()) {
+                petAvlTree.insert(p);
+                speciesTree.addSpeciesAndBreed(p.getSpecies(), "Unknown");
+            }
+            for (Appointment a : storage.loadAppointments()) {
+                allAppointments.add(a);
+                if (a.getTriageScore() >= 50) priorityHeap.insert(a);
+                else appointmentQueue.enqueue(a);
+            }
+        } catch (IOException ex) { System.err.println("Load error: " + ex.getMessage()); }
+    }
+
+    private void saveAllData() {
+        try {
+            storage.saveUsers(auth.getUsers());
+            storage.savePets(petList);
+            storage.saveAppointments(allAppointments);
+        } catch (IOException ex) { System.err.println("Save error: " + ex.getMessage()); }
+    }
+
+    public static void main(String[] args) { launch(args); }
 }
