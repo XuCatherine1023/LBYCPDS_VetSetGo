@@ -1,11 +1,10 @@
-package ph.edu.dlsu.lbycpds.lbycpds_vetsetgodemo;
+package ph.edu.dlsu.lbycpds.lbycpds_vetsetgo;
 
-// Appointment.java
 public class Appointment implements Comparable<Appointment> {
     private String petName;
-    private String caseType; // "Surgical", "Urgent", "Routine"
-    private int severityLevel; // 1 to 5
-    private int timeSlot; // e.g., 900 for 9:00 AM
+    private String caseType;
+    private int severityLevel;
+    private int timeSlot;
     private int triageScore;
     private long arrivalTimestamp;
 
@@ -27,7 +26,6 @@ public class Appointment implements Comparable<Appointment> {
         this.triageScore = caseTypeWeight + (severityLevel * 10);
     }
 
-    // Getters for JavaFX TableView mapping
     public int getTriageScore() { return triageScore; }
     public long getArrivalTimestamp() { return arrivalTimestamp; }
     public int getTimeSlot() { return timeSlot; }
@@ -40,7 +38,7 @@ public class Appointment implements Comparable<Appointment> {
         if (this.triageScore != other.triageScore) {
             return Integer.compare(this.triageScore, other.triageScore);
         }
-        // Tie-breaker: arrival time
+
         return Long.compare(other.arrivalTimestamp, this.arrivalTimestamp);
     }
 }
