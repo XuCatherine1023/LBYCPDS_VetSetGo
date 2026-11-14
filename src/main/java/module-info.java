@@ -1,4 +1,4 @@
-module ph.edu.dlsu.lbycpds.lbycpds_vetsetgodemo {
+module ph.edu.dlsu.lbycpds.lbycpds_vetsetgo {
     requires javafx.controls;
     requires javafx.fxml;
 
