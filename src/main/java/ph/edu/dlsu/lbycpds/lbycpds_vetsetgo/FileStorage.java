@@ -1,4 +1,4 @@
-package ph.edu.dlsu.lbycpds.lbycpds_vetsetgodemo;
+package ph.edu.dlsu.lbycpds.lbycpds_vetsetgo;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
