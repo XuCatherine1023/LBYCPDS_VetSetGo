@@ -130,44 +130,44 @@ public class ClinicStructures {
             y.height = Math.max(height(y.left), height(y.right)) + 1;
             return y;
         }
-    }
 
-    public void insert(Pet p) { root = insertRec(root, p); }
+        public void insert(Pet p) { root = insertRec(root, p); }
 
-    private Node insertRec(Node n, Pet p) {
-        if (n == null) return new Node(p);
-        if (p.getId() < n.pet.getId()) n.left = insertRec(n.left, p);
-        else if (p.getId() > n.pet.getId()) n.right = insertRec(n.right, p);
-        else { n.pet = p; return n; }
+        private Node insertRec(Node n, Pet p) {
+            if (n == null) return new Node(p);
+            if (p.getId() < n.pet.getId()) n.left = insertRec(n.left, p);
+            else if (p.getId() > n.pet.getId()) n.right = insertRec(n.right, p);
+            else { n.pet = p; return n; }
 
-        n.height = 1 + Math.max(height(n.left), height(n.right));
-        int b = getBalance(n);
+            n.height = 1 + Math.max(height(n.left), height(n.right));
+            int b = getBalance(n);
 
-        if (b > 1 && p.getId() < n.left.pet.getId()) return rightRotate(n);
-        if (b < -1 && p.getId() > n.right.pet.getId()) return leftRotate(n);
-        if (b > 1 && p.getId() > n.left.pet.getId()) { n.left = leftRotate(n.left); return rightRotate(n); }
-        if (b < -1 && p.getId() < n.right.pet.getId()) { n.right = rightRotate(n.right); return leftRotate(n); }
-        return n;
-    }
-
-    public Pet search(int id) {
-        Node cur = root;
-        while (cur != null) {
-            if (id == cur.pet.getId()) return cur.pet;
-            cur = (id < cur.pet.getId()) ? cur.left : cur.right;
+            if (b > 1 && p.getId() < n.left.pet.getId()) return rightRotate(n);
+            if (b < -1 && p.getId() > n.right.pet.getId()) return leftRotate(n);
+            if (b > 1 && p.getId() > n.left.pet.getId()) { n.left = leftRotate(n.left); return rightRotate(n); }
+            if (b < -1 && p.getId() < n.right.pet.getId()) { n.right = rightRotate(n.right); return leftRotate(n); }
+            return n;
         }
-        return null;
-    }
 
-    public void inOrderTraversal(List<Pet> resultList) {
-        inOrderRec(root, resultList);
-    }
+        public Pet search(int id) {
+            Node cur = root;
+            while (cur != null) {
+                if (id == cur.pet.getId()) return cur.pet;
+                cur = (id < cur.pet.getId()) ? cur.left : cur.right;
+            }
+            return null;
+        }
 
-    private void inOrderRec(Node node, List<Pet> resultList) {
-        if (node != null) {
-            inOrderRec(node.left, resultList);
-            resultList.add(node.pet);
-            inOrderRec(node.right, resultList);
+        public void inOrderTraversal(List<Pet> resultList) {
+            inOrderRec(root, resultList);
+        }
+
+        private void inOrderRec(Node node, List<Pet> resultList) {
+            if (node != null) {
+                inOrderRec(node.left, resultList);
+                resultList.add(node.pet);
+                inOrderRec(node.right, resultList);
+            }
         }
     }
 
