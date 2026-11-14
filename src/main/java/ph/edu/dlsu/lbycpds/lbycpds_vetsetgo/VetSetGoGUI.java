@@ -283,5 +283,87 @@ public class VetSetGoGUI extends Application {
         root.setCenter(new ScrollPane(content));
         return new Scene(root, 1000, 850);
     }
+    private Scene buildPetProfileScene(Pet pet, User user) {
+        BorderPane root = new BorderPane();
+        root.setStyle(BG_LIGHT);
+        root.setTop(buildNavBar(user));
 
+        VBox content = new VBox(20);
+        content.setPadding(new Insets(20));
+
+        HBox header = new HBox(20);
+        Label title = new Label("🐾 " + pet.getName() + "'s Profile");
+        title.setFont(Font.font("System", FontWeight.BOLD, 22));
+        Region spacer = new Region(); HBox.setHgrow(spacer, Priority.ALWAYS);
+        Button backBtn = new Button("← Back"); backBtn.setStyle(BTN_OUTLINE);
+        backBtn.setOnAction(e -> window.setScene(user.getRole() == Role.PET_OWNER ? buildOwnerDashboard(user) : buildVetDashboard(user)));
+
+        Button prevViewedBtn = new Button("View Previous Record"); prevViewedBtn.setStyle(BTN_OUTLINE);
+        prevViewedBtn.setOnAction(e -> {
+            if(!recentViewedStack.isEmpty()) window.setScene(buildPetProfileScene(recentViewedStack.pop(), user));
+        });
+
+        header.getChildren().addAll(title, spacer, prevViewedBtn, backBtn);
+
+        VBox stats = new VBox(10);
+        stats.setStyle(CARD_STYLE + "-fx-border-color: #0d6efd; -fx-border-width: 2;");
+        stats.setPadding(new Insets(15));
+
+        TextField updateName = new TextField(pet.getName());
+        TextField updateAge = new TextField(String.valueOf(pet.getAge()));
+        TextField updateWeight = new TextField(String.valueOf(pet.getWeight()));
+
+        Button updateBtn = new Button("Update Details"); updateBtn.setStyle(BTN_PRIMARY);
+        updateBtn.setOnAction(e -> {
+            String oldName = pet.getName();
+            pet.setName(updateName.getText());
+            pet.setAge(Integer.parseInt(updateAge.getText()));
+            pet.setWeight(Double.parseDouble(updateWeight.getText()));
+
+            undoStack.push(() -> { pet.setName(oldName); window.setScene(buildPetProfileScene(pet, user)); });
+            showAlert("Success", "Record updated.");
+        });
+
+        Button deleteBtn = new Button("Delete Pet"); deleteBtn.setStyle(BTN_DANGER);
+        deleteBtn.setOnAction(e -> {
+            petList.removeById(pet.getId());
+            undoStack.push(() -> { petList.add(pet); });
+            showAlert("Deleted", "Pet removed from system.");
+            window.setScene(user.getRole() == Role.PET_OWNER ? buildOwnerDashboard(user) : buildVetDashboard(user));
+        });
+
+        HBox crudActions = new HBox(10, updateBtn, deleteBtn);
+        stats.getChildren().addAll(
+                new Label("Name:"), updateName,
+                new Label("Species: " + pet.getSpecies()),
+                new Label("Age:"), updateAge,
+                new Label("Weight (kg):"), updateWeight,
+                crudActions
+        );
+
+        Label medTitle = new Label("🩺 Medical History"); medTitle.setFont(Font.font("System", FontWeight.BOLD, 18));
+        VBox medList = new VBox(10);
+        for (String log : pet.getMedicalHistory()) {
+            Label l = new Label("• " + log);
+            l.setStyle(CARD_STYLE); l.setPadding(new Insets(10)); l.setMaxWidth(Double.MAX_VALUE);
+            medList.getChildren().add(l);
+        }
+
+        if (user.getRole() == Role.VETERINARIAN) {
+            HBox addMedForm = new HBox(10);
+            TextField logField = new TextField(); logField.setPromptText("Diagnosis Notes...");
+            Button addLogBtn = new Button("Save Record"); addLogBtn.setStyle(BTN_PRIMARY);
+            addLogBtn.setOnAction(e -> {
+                pet.addMedicalRecord(logField.getText());
+                saveAllData();
+                window.setScene(buildPetProfileScene(pet, user));
+            });
+            addMedForm.getChildren().addAll(logField, addLogBtn);
+            medList.getChildren().add(0, addMedForm);
+        }
+
+        content.getChildren().addAll(header, stats, medTitle, medList);
+        root.setCenter(new ScrollPane(content));
+        return new Scene(root, 900, 750);
+    }
 }
