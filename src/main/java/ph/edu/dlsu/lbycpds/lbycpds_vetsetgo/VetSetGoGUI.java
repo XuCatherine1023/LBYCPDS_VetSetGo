@@ -16,11 +16,15 @@ import java.util.*;
 
 public class VetSetGoGUI extends Application {
 
-    private static final String BG_LIGHT = "-fx-background-color: #f8f9fa;";
-    private static final String BTN_PRIMARY = "-fx-background-color: #0d6efd; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 5;";
-    private static final String BTN_OUTLINE = "-fx-background-color: transparent; -fx-border-color: #0d6efd; -fx-text-fill: #0d6efd; -fx-background-radius: 5; -fx-border-radius: 5;";
+    // THEME UPDATE: Soft lavender background
+    private static final String BG_LIGHT = "-fx-background-color: #F3E5F5;";
+    // THEME UPDATE: Deep purple button with vibrant yellow text
+    private static final String BTN_PRIMARY = "-fx-background-color: #512DA8; -fx-text-fill: #FFC107; -fx-font-weight: bold; -fx-background-radius: 5;";
+    // THEME UPDATE: Purple outline and text
+    private static final String BTN_OUTLINE = "-fx-background-color: transparent; -fx-border-color: #512DA8; -fx-text-fill: #512DA8; -fx-font-weight: bold; -fx-background-radius: 5; -fx-border-radius: 5;";
+    // Kept danger red for critical actions, but ensuring text is white
     private static final String BTN_DANGER = "-fx-background-color: #dc3545; -fx-text-fill: white; -fx-background-radius: 5;";
-    private static final String CARD_STYLE = "-fx-background-color: white; -fx-border-color: #dee2e6; -fx-border-radius: 8; -fx-background-radius: 8; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 10, 0, 0, 4);";
+    private static final String CARD_STYLE = "-fx-background-color: white; -fx-border-color: #D1C4E9; -fx-border-radius: 8; -fx-background-radius: 8; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 10, 0, 0, 4);";
 
     private Stage window;
     private final FileStorage storage = new FileStorage("data");
@@ -65,6 +69,7 @@ public class VetSetGoGUI extends Application {
 
         Label title = new Label("Portal Login");
         title.setFont(Font.font("System", FontWeight.BOLD, 24));
+        title.setStyle("-fx-text-fill: #512DA8;"); // THEME UPDATE
         Label sub = new Label("Good to see you again. Sign in to book visits.");
         sub.setWrapText(true);
 
@@ -76,7 +81,7 @@ public class VetSetGoGUI extends Application {
         loginBtn.setMaxWidth(Double.MAX_VALUE);
 
         Button signupBtn = new Button("Don't have an account? Sign up here");
-        signupBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #0d6efd; -fx-underline: true;");
+        signupBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #512DA8; -fx-underline: true; -fx-font-weight: bold;"); // THEME UPDATE
 
         loginBtn.setOnAction(e -> {
             User u = auth.login(userField.getText(), passField.getText());
@@ -106,6 +111,7 @@ public class VetSetGoGUI extends Application {
 
         Label title = new Label("Create a VetSetGo Account");
         title.setFont(Font.font("System", FontWeight.BOLD, 24));
+        title.setStyle("-fx-text-fill: #512DA8;"); // THEME UPDATE
 
         ComboBox<Role> roleBox = new ComboBox<>();
         roleBox.getItems().addAll(Role.PET_OWNER, Role.VETERINARIAN);
@@ -121,7 +127,7 @@ public class VetSetGoGUI extends Application {
         signupBtn.setStyle(BTN_PRIMARY);
         signupBtn.setMaxWidth(Double.MAX_VALUE);
         Button backBtn = new Button("Already have an account? Login here");
-        backBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #0d6efd; -fx-underline: true;");
+        backBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #512DA8; -fx-underline: true; -fx-font-weight: bold;"); // THEME UPDATE
 
         signupBtn.setOnAction(e -> {
             if (auth.register(nameField.getText(), nameField.getText(), roleBox.getValue(), passField.getText())) {
@@ -153,6 +159,7 @@ public class VetSetGoGUI extends Application {
         VBox userDetails = new VBox(5);
         Label welcome = new Label("Welcome, " + user.getFullName());
         welcome.setFont(Font.font("System", FontWeight.BOLD, 22));
+        welcome.setStyle("-fx-text-fill: #512DA8;"); // THEME UPDATE
         userDetails.getChildren().add(welcome);
         Region spacer = new Region(); HBox.setHgrow(spacer, Priority.ALWAYS);
 
@@ -170,7 +177,7 @@ public class VetSetGoGUI extends Application {
 
         VBox hoursCard = new VBox(10);
         hoursCard.setStyle(CARD_STYLE); hoursCard.setPadding(new Insets(15));
-        Label hTitle = new Label("🕒 Clinic Hours"); hTitle.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+        Label hTitle = new Label("🕒 Clinic Hours"); hTitle.setStyle("-fx-font-weight: bold; -fx-font-size: 14px; -fx-text-fill: #512DA8;");
         VBox hList = new VBox(5);
 
         for (int i = 0; i < ClinicStructures.CLINIC_HOURS.length; i++) {
@@ -181,7 +188,7 @@ public class VetSetGoGUI extends Application {
         VBox regPetCard = new VBox(10);
         regPetCard.setStyle(CARD_STYLE);
         regPetCard.setPadding(new Insets(15));
-        Label regTitle = new Label("🐾 Register New Pet"); regTitle.setStyle("-fx-font-weight: bold; -fx-font-size: 16px;");
+        Label regTitle = new Label("🐾 Register New Pet"); regTitle.setStyle("-fx-font-weight: bold; -fx-font-size: 16px; -fx-text-fill: #512DA8;");
         TextField pName = new TextField(); pName.setPromptText("Pet Name");
         TextField pSpecies = new TextField(); pSpecies.setPromptText("Species (e.g., Dog)");
         TextField pAge = new TextField(); pAge.setPromptText("Age");
@@ -191,6 +198,7 @@ public class VetSetGoGUI extends Application {
         leftCol.getChildren().addAll(hoursCard, regPetCard);
 
         Label petsTitle = new Label("🐾 My Pets"); petsTitle.setFont(Font.font("System", FontWeight.BOLD, 18));
+        petsTitle.setStyle("-fx-text-fill: #512DA8;");
         TilePane petsGrid = new TilePane(15, 15);
         petsGrid.setPrefColumns(2);
 
@@ -199,7 +207,7 @@ public class VetSetGoGUI extends Application {
             List<Pet> myPets = petList.findByOwner(user.getUsername());
             for (Pet p : myPets) {
                 VBox card = new VBox(8); card.setStyle(CARD_STYLE); card.setPadding(new Insets(15));
-                Label n = new Label(p.getName()); n.setStyle("-fx-text-fill: #0d6efd; -fx-font-weight: bold; -fx-font-size: 16px;");
+                Label n = new Label(p.getName()); n.setStyle("-fx-text-fill: #512DA8; -fx-font-weight: bold; -fx-font-size: 16px;"); // THEME UPDATE
                 Label s = new Label("Species: " + p.getSpecies());
                 Button viewBtn = new Button("View Profile"); viewBtn.setStyle(BTN_PRIMARY);
                 viewBtn.setOnAction(e -> {
@@ -218,6 +226,7 @@ public class VetSetGoGUI extends Application {
         bookCard.setStyle(CARD_STYLE);
         bookCard.setPadding(new Insets(20));
         Label bookTitle = new Label("📅 Request Routine Appointment"); bookTitle.setFont(Font.font("System", FontWeight.BOLD, 18));
+        bookTitle.setStyle("-fx-text-fill: #512DA8;");
         HBox bookForm = new HBox(15);
         TextField aptPet = new TextField(); aptPet.setPromptText("Pet Name");
         ComboBox<Integer> slotBox = new ComboBox<>();
@@ -229,6 +238,7 @@ public class VetSetGoGUI extends Application {
         VBox myBookingsCard = new VBox(15);
         myBookingsCard.setStyle(CARD_STYLE); myBookingsCard.setPadding(new Insets(20));
         Label myBookingsTitle = new Label("📋 My Upcoming Bookings"); myBookingsTitle.setFont(Font.font("System", FontWeight.BOLD, 18));
+        myBookingsTitle.setStyle("-fx-text-fill: #512DA8;");
 
         TableView<Appointment> ownerTable = new TableView<>();
         TableColumn<Appointment, Integer> timeColO = new TableColumn<>("Time Slot"); timeColO.setCellValueFactory(new PropertyValueFactory<>("timeSlot"));
@@ -267,7 +277,7 @@ public class VetSetGoGUI extends Application {
         });
 
         addPetBtn.setOnAction(e -> {
-            Pet p = new Pet(nextPetId++, pName.getText(), pSpecies.getText(), "", Integer.parseInt(pAge.getText()), Double.parseDouble(pWeight.getText()), "", user.getUsername());
+            Pet p = new Pet(nextPetId++, "", pName.getText(), pSpecies.getText(), Integer.parseInt(pAge.getText()), Double.parseDouble(pWeight.getText()), "", user.getUsername());
             petList.add(p);
             petAvlTree.insert(p);
             speciesTree.addSpeciesAndBreed(p.getSpecies(), "Unknown");
@@ -295,6 +305,7 @@ public class VetSetGoGUI extends Application {
         HBox header = new HBox(20);
         Label title = new Label("🐾 " + pet.getName() + "'s Profile");
         title.setFont(Font.font("System", FontWeight.BOLD, 22));
+        title.setStyle("-fx-text-fill: #512DA8;");
         Region spacer = new Region(); HBox.setHgrow(spacer, Priority.ALWAYS);
         Button backBtn = new Button("← Back"); backBtn.setStyle(BTN_OUTLINE);
         backBtn.setOnAction(e -> window.setScene(user.getRole() == Role.PET_OWNER ? buildOwnerDashboard(user) : buildVetDashboard(user)));
@@ -307,7 +318,7 @@ public class VetSetGoGUI extends Application {
         header.getChildren().addAll(title, spacer, prevViewedBtn, backBtn);
 
         VBox stats = new VBox(10);
-        stats.setStyle(CARD_STYLE + "-fx-border-color: #0d6efd; -fx-border-width: 2;");
+        stats.setStyle(CARD_STYLE + "-fx-border-color: #FFC107; -fx-border-width: 2;"); // THEME UPDATE
         stats.setPadding(new Insets(15));
 
         TextField updateName = new TextField(pet.getName());
@@ -343,6 +354,7 @@ public class VetSetGoGUI extends Application {
         );
 
         Label medTitle = new Label("🩺 Medical History"); medTitle.setFont(Font.font("System", FontWeight.BOLD, 18));
+        medTitle.setStyle("-fx-text-fill: #512DA8;");
         VBox medList = new VBox(10);
         for (String log : pet.getMedicalHistory()) {
             Label l = new Label("• " + log);
@@ -378,18 +390,21 @@ public class VetSetGoGUI extends Application {
 
         Label welcome = new Label("Veterinarian Dashboard | Dr. " + user.getFullName());
         welcome.setFont(Font.font("System", FontWeight.BOLD, 22));
+        welcome.setStyle("-fx-text-fill: #512DA8;"); // THEME UPDATE
 
         HBox split = new HBox(20);
 
         VBox queueCard = new VBox(15);
         queueCard.setStyle(CARD_STYLE); queueCard.setPadding(new Insets(20)); queueCard.setPrefWidth(350);
         Label qTitle = new Label("📅 Serve Next Patient"); qTitle.setFont(Font.font("System", FontWeight.BOLD, 16));
+        qTitle.setStyle("-fx-text-fill: #512DA8;");
         TextArea qLog = new TextArea(); qLog.setEditable(false); qLog.setPrefHeight(80);
         Button serveBtn = new Button("Call Next Patient"); serveBtn.setStyle(BTN_PRIMARY);
 
         VBox bfsCard = new VBox(15);
         bfsCard.setStyle(CARD_STYLE); bfsCard.setPadding(new Insets(20)); HBox.setHgrow(bfsCard, Priority.ALWAYS);
         Label bfsTitle = new Label("🩺 BFS Symptom & Fee Estimator"); bfsTitle.setFont(Font.font("System", FontWeight.BOLD, 16));
+        bfsTitle.setStyle("-fx-text-fill: #512DA8;");
         HBox bfsForm = new HBox(10);
         ComboBox<String> symptomBox = new ComboBox<>();
         symptomBox.getItems().addAll("Lethargy", "Bleeding", "Fracture", "Bad Breath");
@@ -411,6 +426,7 @@ public class VetSetGoGUI extends Application {
         VBox triageCard = new VBox(15);
         triageCard.setStyle(CARD_STYLE); triageCard.setPadding(new Insets(20));
         Label triageTitle = new Label("🚨 Triage & Book Patient"); triageTitle.setFont(Font.font("System", FontWeight.BOLD, 16));
+        triageTitle.setStyle("-fx-text-fill: #512DA8;");
         HBox triageForm = new HBox(10);
         TextField tPet = new TextField(); tPet.setPromptText("Pet Name");
 
@@ -434,6 +450,7 @@ public class VetSetGoGUI extends Application {
         VBox scheduleCard = new VBox(10);
         scheduleCard.setStyle(CARD_STYLE); scheduleCard.setPadding(new Insets(20));
         Label schedTitle = new Label("📋 Full Daily Appointments Schedule"); schedTitle.setFont(Font.font("System", FontWeight.BOLD, 16));
+        schedTitle.setStyle("-fx-text-fill: #512DA8;");
 
         TableView<Appointment> schedTable = new TableView<>();
         TableColumn<Appointment, Integer> timeCol = new TableColumn<>("Time Slot"); timeCol.setCellValueFactory(new PropertyValueFactory<>("timeSlot"));
@@ -510,7 +527,9 @@ public class VetSetGoGUI extends Application {
 
         searchForm.getChildren().addAll(searchId, searchIdBtn, searchName, searchNameBtn, listAvlBtn);
 
-        content.getChildren().addAll(welcome, split, triageCard, scheduleCard, new Label("Search Global Records:"), searchForm, searchResultLog);
+        Label searchLabel = new Label("Search Global Records:");
+        searchLabel.setStyle("-fx-text-fill: #512DA8; -fx-font-weight: bold;");
+        content.getChildren().addAll(welcome, split, triageCard, scheduleCard, searchLabel, searchForm, searchResultLog);
         root.setCenter(new ScrollPane(content));
         return new Scene(root, 1000, 850);
     }
@@ -519,17 +538,21 @@ public class VetSetGoGUI extends Application {
     private HBox buildNavBar(User user) {
         HBox nav = new HBox(15);
         nav.setPadding(new Insets(15, 20, 15, 20));
-        nav.setStyle("-fx-background-color: #0d6efd;");
+        nav.setStyle("-fx-background-color: #512DA8;"); // THEME UPDATE
         nav.setAlignment(Pos.CENTER_LEFT);
-        Label brand = new Label("🐾 VetSetGo"); brand.setFont(Font.font("System", FontWeight.BOLD, 20)); brand.setTextFill(Color.WHITE);
+        Label brand = new Label("🐾 VetSetGo"); brand.setFont(Font.font("System", FontWeight.BOLD, 20));
+        brand.setTextFill(Color.web("#FFC107")); // THEME UPDATE
         Region spacer = new Region(); HBox.setHgrow(spacer, Priority.ALWAYS);
         nav.getChildren().addAll(brand, spacer);
 
         if (user == null) {
-            Button loginBtn = new Button("Login"); loginBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: white; -fx-font-weight: bold;");
+            Button loginBtn = new Button("Login");
+            loginBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: white; -fx-font-weight: bold;");
             loginBtn.setOnAction(e -> window.setScene(buildLoginScene())); nav.getChildren().add(loginBtn);
         } else {
-            Button logoutBtn = new Button("Logout"); logoutBtn.setStyle("-fx-background-color: white; -fx-text-fill: #0d6efd; -fx-font-weight: bold; -fx-background-radius: 4;");
+            Button logoutBtn = new Button("Logout");
+            // THEME UPDATE: Yellow button, Purple text for contrast
+            logoutBtn.setStyle("-fx-background-color: #FFC107; -fx-text-fill: #512DA8; -fx-font-weight: bold; -fx-background-radius: 4;");
             logoutBtn.setOnAction(e -> { auth.logout(); window.setScene(buildLoginScene()); }); nav.getChildren().add(logoutBtn);
         }
         return nav;
@@ -545,12 +568,19 @@ public class VetSetGoGUI extends Application {
         serviceFees.put("Vaccination", 1000.0);
         serviceFees.put("Surgery", 5000.0);
         serviceFees.put("Emergency Stabilization", 2500.0);
+        serviceFees.put("Viral Infection", 1500.0);
+        serviceFees.put("Dental Cleaning", 2000.0);
+        serviceFees.put("X-Ray", 1500.0);
+        serviceFees.put("Cast/Splint", 2000.0);
 
         symptomGraph.addEdge("Lethargy", "Viral Infection");
         symptomGraph.addEdge("Bleeding", "Trauma");
         symptomGraph.addEdge("Trauma", "Emergency Stabilization");
         symptomGraph.addEdge("Trauma", "Surgery");
         symptomGraph.addEdge("Bad Breath", "Dental Cleaning");
+        symptomGraph.addEdge("Fracture", "X-Ray");
+        symptomGraph.addEdge("X-Ray", "Cast/Splint");
+        symptomGraph.addEdge("X-Ray", "Surgery");
     }
 
     private void loadSavedData() {
