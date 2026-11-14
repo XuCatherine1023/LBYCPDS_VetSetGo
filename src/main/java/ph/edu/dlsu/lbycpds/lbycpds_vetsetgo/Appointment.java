@@ -22,7 +22,6 @@ public class Appointment implements Comparable<Appointment> {
         if (caseType.equalsIgnoreCase("Surgical")) caseTypeWeight = 60;
         else if (caseType.equalsIgnoreCase("Urgent")) caseTypeWeight = 40;
 
-        // Triage Scoring formula
         this.triageScore = caseTypeWeight + (severityLevel * 10);
     }
 
