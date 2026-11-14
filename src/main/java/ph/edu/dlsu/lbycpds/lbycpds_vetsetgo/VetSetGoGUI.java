@@ -139,5 +139,149 @@ public class VetSetGoGUI extends Application {
         root.setCenter(formWrap);
         return new Scene(root, 900, 650);
     }
-}
 
+    private Scene buildOwnerDashboard(User user) {
+        BorderPane root = new BorderPane();
+        root.setStyle(BG_LIGHT);
+        root.setTop(buildNavBar(user));
+
+        VBox content = new VBox(20);
+        content.setPadding(new Insets(20));
+
+        HBox header = new HBox(20);
+        header.setAlignment(Pos.CENTER_LEFT);
+        VBox userDetails = new VBox(5);
+        Label welcome = new Label("Welcome, " + user.getFullName());
+        welcome.setFont(Font.font("System", FontWeight.BOLD, 22));
+        userDetails.getChildren().add(welcome);
+        Region spacer = new Region(); HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        Button undoBtn = new Button("Undo Last Action"); undoBtn.setStyle(BTN_OUTLINE);
+        undoBtn.setOnAction(e -> {
+            if (!undoStack.isEmpty()) { undoStack.pop().run(); showAlert("Success", "Last action undone."); window.setScene(buildOwnerDashboard(user)); }
+            else showAlert("Notice", "Nothing to undo.");
+        });
+
+        header.getChildren().addAll(userDetails, spacer, undoBtn);
+
+        HBox split = new HBox(20);
+        VBox leftCol = new VBox(15); leftCol.setPrefWidth(300);
+        VBox rightCol = new VBox(15); HBox.setHgrow(rightCol, Priority.ALWAYS);
+
+        VBox hoursCard = new VBox(10);
+        hoursCard.setStyle(CARD_STYLE); hoursCard.setPadding(new Insets(15));
+        Label hTitle = new Label("🕒 Clinic Hours"); hTitle.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+        VBox hList = new VBox(5);
+
+        for (int i = 0; i < ClinicStructures.CLINIC_HOURS.length; i++) {
+            hList.getChildren().add(new Label(ClinicStructures.CLINIC_HOURS[i]));
+        }
+        hoursCard.getChildren().addAll(hTitle, hList);
+
+        VBox regPetCard = new VBox(10);
+        regPetCard.setStyle(CARD_STYLE);
+        regPetCard.setPadding(new Insets(15));
+        Label regTitle = new Label("🐾 Register New Pet"); regTitle.setStyle("-fx-font-weight: bold; -fx-font-size: 16px;");
+        TextField pName = new TextField(); pName.setPromptText("Pet Name");
+        TextField pSpecies = new TextField(); pSpecies.setPromptText("Species (e.g., Dog)");
+        TextField pAge = new TextField(); pAge.setPromptText("Age");
+        TextField pWeight = new TextField(); pWeight.setPromptText("Weight (kg)");
+        Button addPetBtn = new Button("Add Pet"); addPetBtn.setStyle(BTN_PRIMARY); addPetBtn.setMaxWidth(Double.MAX_VALUE);
+        regPetCard.getChildren().addAll(regTitle, pName, pSpecies, pAge, pWeight, addPetBtn);
+        leftCol.getChildren().addAll(hoursCard, regPetCard);
+
+        Label petsTitle = new Label("🐾 My Pets"); petsTitle.setFont(Font.font("System", FontWeight.BOLD, 18));
+        TilePane petsGrid = new TilePane(15, 15);
+        petsGrid.setPrefColumns(2);
+
+        Runnable refreshPets = () -> {
+            petsGrid.getChildren().clear();
+            List<Pet> myPets = petList.findByOwner(user.getUsername());
+            for (Pet p : myPets) {
+                VBox card = new VBox(8); card.setStyle(CARD_STYLE); card.setPadding(new Insets(15));
+                Label n = new Label(p.getName()); n.setStyle("-fx-text-fill: #0d6efd; -fx-font-weight: bold; -fx-font-size: 16px;");
+                Label s = new Label("Species: " + p.getSpecies());
+                Button viewBtn = new Button("View Profile"); viewBtn.setStyle(BTN_PRIMARY);
+                viewBtn.setOnAction(e -> {
+                    recentViewedStack.push(p);
+                    window.setScene(buildPetProfileScene(p, user));
+                });
+                card.getChildren().addAll(n, s, viewBtn);
+                petsGrid.getChildren().add(card);
+            }
+        };
+        refreshPets.run();
+        rightCol.getChildren().addAll(petsTitle, petsGrid);
+        split.getChildren().addAll(leftCol, rightCol);
+
+        VBox bookCard = new VBox(15);
+        bookCard.setStyle(CARD_STYLE);
+        bookCard.setPadding(new Insets(20));
+        Label bookTitle = new Label("📅 Request Routine Appointment"); bookTitle.setFont(Font.font("System", FontWeight.BOLD, 18));
+        HBox bookForm = new HBox(15);
+        TextField aptPet = new TextField(); aptPet.setPromptText("Pet Name");
+        ComboBox<Integer> slotBox = new ComboBox<>();
+        for (int s : clinicTimeSlots) slotBox.getItems().add(s);
+        Button confirmBook = new Button("Confirm Booking"); confirmBook.setStyle(BTN_PRIMARY);
+        bookForm.getChildren().addAll(aptPet, slotBox, confirmBook);
+        bookCard.getChildren().addAll(bookTitle, bookForm);
+
+        VBox myBookingsCard = new VBox(15);
+        myBookingsCard.setStyle(CARD_STYLE); myBookingsCard.setPadding(new Insets(20));
+        Label myBookingsTitle = new Label("📋 My Upcoming Bookings"); myBookingsTitle.setFont(Font.font("System", FontWeight.BOLD, 18));
+
+        TableView<Appointment> ownerTable = new TableView<>();
+        TableColumn<Appointment, Integer> timeColO = new TableColumn<>("Time Slot"); timeColO.setCellValueFactory(new PropertyValueFactory<>("timeSlot"));
+        TableColumn<Appointment, String> petColO = new TableColumn<>("Pet Name"); petColO.setCellValueFactory(new PropertyValueFactory<>("petName"));
+        TableColumn<Appointment, String> typeColO = new TableColumn<>("Case Type"); typeColO.setCellValueFactory(new PropertyValueFactory<>("caseType"));
+        ownerTable.getColumns().addAll(timeColO, petColO, typeColO);
+        ownerTable.setPrefHeight(200);
+
+        Runnable refreshOwnerTable = () -> {
+            List<String> myPetNames = new ArrayList<>();
+            for (Pet p : petList.findByOwner(user.getUsername())) myPetNames.add(p.getName());
+            List<Appointment> filtered = new ArrayList<>();
+            for (Appointment a : allAppointments) {
+                if (myPetNames.contains(a.getPetName())) filtered.add(a);
+            }
+            if (!filtered.isEmpty()) ClinicAlgorithms.quickSortAppointments(filtered, 0, filtered.size() - 1);
+            ownerTable.getItems().setAll(filtered);
+        };
+        refreshOwnerTable.run();
+        myBookingsCard.getChildren().addAll(myBookingsTitle, ownerTable);
+
+        confirmBook.setOnAction(e -> {
+            int targetSlot = slotBox.getValue();
+            int idx = ClinicAlgorithms.binarySearchTimeSlot(clinicTimeSlots, targetSlot);
+            if (idx == -1) { showAlert("Error", "Invalid Time Slot."); return; }
+            Appointment apt = new Appointment(aptPet.getText(), "Routine", 1, targetSlot);
+            appointmentQueue.enqueue(apt);
+            allAppointments.add(apt);
+            refreshOwnerTable.run();
+
+            undoStack.push(() -> {
+                allAppointments.remove(apt);
+                refreshOwnerTable.run();
+            });
+            showAlert("Success", "Routine appointment queued for slot " + targetSlot);
+        });
+
+        addPetBtn.setOnAction(e -> {
+            Pet p = new Pet(nextPetId++, pName.getText(), pSpecies.getText(), "", Integer.parseInt(pAge.getText()), Double.parseDouble(pWeight.getText()), "", user.getUsername());
+            petList.add(p);
+            petAvlTree.insert(p);
+            speciesTree.addSpeciesAndBreed(p.getSpecies(), "Unknown");
+            refreshPets.run();
+
+            undoStack.push(() -> {
+                petList.removeById(p.getId());
+                refreshPets.run();
+            });
+        });
+
+        content.getChildren().addAll(header, split, bookCard, myBookingsCard);
+        root.setCenter(new ScrollPane(content));
+        return new Scene(root, 1000, 850);
+    }
+
+}
