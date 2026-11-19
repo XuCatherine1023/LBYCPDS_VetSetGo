@@ -10,7 +10,7 @@ public class Pet {
     private int age;
     private double weight;
     private final String ownerUsername;
-    private List<String> medicalHistory; // Added for medical logs
+    private List<String> medicalHistory;
 
     public Pet(int id, String string, String name, String species, int age, double weight, String s, String ownerUsername) {
         this.id = id;
@@ -36,7 +36,6 @@ public class Pet {
     public void setWeight(double weight)   { this.weight = weight; }
     public void addMedicalRecord(String record) { this.medicalHistory.add(record); }
 
-    // Used for deserialization
     public void setMedicalHistory(List<String> history) { this.medicalHistory = history; }
 
     @Override
