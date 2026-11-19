@@ -16,13 +16,9 @@ import java.util.*;
 
 public class VetSetGoGUI extends Application {
 
-    // THEME UPDATE: Soft lavender background
     private static final String BG_LIGHT = "-fx-background-color: #F3E5F5;";
-    // THEME UPDATE: Deep purple button with vibrant yellow text
     private static final String BTN_PRIMARY = "-fx-background-color: #512DA8; -fx-text-fill: #FFC107; -fx-font-weight: bold; -fx-background-radius: 5;";
-    // THEME UPDATE: Purple outline and text
     private static final String BTN_OUTLINE = "-fx-background-color: transparent; -fx-border-color: #512DA8; -fx-text-fill: #512DA8; -fx-font-weight: bold; -fx-background-radius: 5; -fx-border-radius: 5;";
-    // Kept danger red for critical actions, but ensuring text is white
     private static final String BTN_DANGER = "-fx-background-color: #dc3545; -fx-text-fill: white; -fx-background-radius: 5;";
     private static final String CARD_STYLE = "-fx-background-color: white; -fx-border-color: #D1C4E9; -fx-border-radius: 8; -fx-background-radius: 8; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 10, 0, 0, 4);";
 
@@ -32,8 +28,6 @@ public class VetSetGoGUI extends Application {
     private PetLinkedList petList = new PetLinkedList();
     private int nextPetId = 1;
 
-    private final ClinicStructures.PriorityHeap priorityHeap = new ClinicStructures.PriorityHeap();
-    private final ClinicStructures.AppointmentQueue appointmentQueue = new ClinicStructures.AppointmentQueue();
     private final List<Appointment> allAppointments = new ArrayList<>();
     private final ClinicStructures.RecordStack recentViewedStack = new ClinicStructures.RecordStack();
     private final Deque<Runnable> undoStack = new ArrayDeque<>();
@@ -44,6 +38,8 @@ public class VetSetGoGUI extends Application {
     private final ClinicStructures.SpeciesBreedTree speciesTree = new ClinicStructures.SpeciesBreedTree();
 
     private final int[] clinicTimeSlots = {900, 1000, 1100, 1300, 1400, 1500, 1600};
+
+    private Appointment activePatient = null;
 
     @Override
     public void start(Stage primaryStage) {
@@ -69,7 +65,7 @@ public class VetSetGoGUI extends Application {
 
         Label title = new Label("Portal Login");
         title.setFont(Font.font("System", FontWeight.BOLD, 24));
-        title.setStyle("-fx-text-fill: #512DA8;"); // THEME UPDATE
+        title.setStyle("-fx-text-fill: #512DA8;");
         Label sub = new Label("Good to see you again. Sign in to book visits.");
         sub.setWrapText(true);
 
@@ -81,7 +77,7 @@ public class VetSetGoGUI extends Application {
         loginBtn.setMaxWidth(Double.MAX_VALUE);
 
         Button signupBtn = new Button("Don't have an account? Sign up here");
-        signupBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #512DA8; -fx-underline: true; -fx-font-weight: bold;"); // THEME UPDATE
+        signupBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #512DA8; -fx-underline: true; -fx-font-weight: bold;");
 
         loginBtn.setOnAction(e -> {
             User u = auth.login(userField.getText(), passField.getText());
@@ -111,7 +107,7 @@ public class VetSetGoGUI extends Application {
 
         Label title = new Label("Create a VetSetGo Account");
         title.setFont(Font.font("System", FontWeight.BOLD, 24));
-        title.setStyle("-fx-text-fill: #512DA8;"); // THEME UPDATE
+        title.setStyle("-fx-text-fill: #512DA8;");
 
         ComboBox<Role> roleBox = new ComboBox<>();
         roleBox.getItems().addAll(Role.PET_OWNER, Role.VETERINARIAN);
@@ -127,10 +123,11 @@ public class VetSetGoGUI extends Application {
         signupBtn.setStyle(BTN_PRIMARY);
         signupBtn.setMaxWidth(Double.MAX_VALUE);
         Button backBtn = new Button("Already have an account? Login here");
-        backBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #512DA8; -fx-underline: true; -fx-font-weight: bold;"); // THEME UPDATE
+        backBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #512DA8; -fx-underline: true; -fx-font-weight: bold;");
 
         signupBtn.setOnAction(e -> {
             if (auth.register(nameField.getText(), nameField.getText(), roleBox.getValue(), passField.getText())) {
+                saveAllData();
                 showAlert("Success", "Account created! Please login.");
                 window.setScene(buildLoginScene());
             } else {
@@ -159,13 +156,13 @@ public class VetSetGoGUI extends Application {
         VBox userDetails = new VBox(5);
         Label welcome = new Label("Welcome, " + user.getFullName());
         welcome.setFont(Font.font("System", FontWeight.BOLD, 22));
-        welcome.setStyle("-fx-text-fill: #512DA8;"); // THEME UPDATE
+        welcome.setStyle("-fx-text-fill: #512DA8;");
         userDetails.getChildren().add(welcome);
         Region spacer = new Region(); HBox.setHgrow(spacer, Priority.ALWAYS);
 
         Button undoBtn = new Button("Undo Last Action"); undoBtn.setStyle(BTN_OUTLINE);
         undoBtn.setOnAction(e -> {
-            if (!undoStack.isEmpty()) { undoStack.pop().run(); showAlert("Success", "Last action undone."); window.setScene(buildOwnerDashboard(user)); }
+            if (!undoStack.isEmpty()) { undoStack.pop().run(); saveAllData(); showAlert("Success", "Last action undone."); window.setScene(buildOwnerDashboard(user)); }
             else showAlert("Notice", "Nothing to undo.");
         });
 
@@ -207,7 +204,7 @@ public class VetSetGoGUI extends Application {
             List<Pet> myPets = petList.findByOwner(user.getUsername());
             for (Pet p : myPets) {
                 VBox card = new VBox(8); card.setStyle(CARD_STYLE); card.setPadding(new Insets(15));
-                Label n = new Label(p.getName()); n.setStyle("-fx-text-fill: #512DA8; -fx-font-weight: bold; -fx-font-size: 16px;"); // THEME UPDATE
+                Label n = new Label(p.getName()); n.setStyle("-fx-text-fill: #512DA8; -fx-font-weight: bold; -fx-font-size: 16px;");
                 Label s = new Label("Species: " + p.getSpecies());
                 Button viewBtn = new Button("View Profile"); viewBtn.setStyle(BTN_PRIMARY);
                 viewBtn.setOnAction(e -> {
@@ -227,32 +224,57 @@ public class VetSetGoGUI extends Application {
         bookCard.setPadding(new Insets(20));
         Label bookTitle = new Label("📅 Request Routine Appointment"); bookTitle.setFont(Font.font("System", FontWeight.BOLD, 18));
         bookTitle.setStyle("-fx-text-fill: #512DA8;");
-        HBox bookForm = new HBox(15);
+
+        HBox bookForm1 = new HBox(15);
         TextField aptPet = new TextField(); aptPet.setPromptText("Pet Name");
+        DatePicker datePicker = new DatePicker(); datePicker.setPromptText("Select Date");
         ComboBox<Integer> slotBox = new ComboBox<>();
         for (int s : clinicTimeSlots) slotBox.getItems().add(s);
+        slotBox.setPromptText("Time Slot");
+
+        HBox bookForm2 = new HBox(15);
+        ComboBox<String> vetBox = new ComboBox<>();
+        for (User u : auth.getUsers().values()) {
+            if (u.getRole() == Role.VETERINARIAN) {
+                vetBox.getItems().add("Dr. " + u.getFullName());
+            }
+        }
+        vetBox.setPromptText("Select Veterinarian");
+
+        ComboBox<String> reasonBox = new ComboBox<>();
+        reasonBox.getItems().addAll("Consultation", "Vaccination", "Surgery");
+        reasonBox.setPromptText("Reason for Visit");
+
+        ComboBox<String> paymentBox = new ComboBox<>();
+        paymentBox.getItems().addAll("Cash", "Card", "GCash (09663657893)");
+        paymentBox.setPromptText("Payment Method");
+
         Button confirmBook = new Button("Confirm Booking"); confirmBook.setStyle(BTN_PRIMARY);
-        bookForm.getChildren().addAll(aptPet, slotBox, confirmBook);
-        bookCard.getChildren().addAll(bookTitle, bookForm);
+
+        bookForm1.getChildren().addAll(aptPet, datePicker, slotBox);
+        bookForm2.getChildren().addAll(vetBox, reasonBox, paymentBox, confirmBook);
+        bookCard.getChildren().addAll(bookTitle, bookForm1, bookForm2);
 
         VBox myBookingsCard = new VBox(15);
         myBookingsCard.setStyle(CARD_STYLE); myBookingsCard.setPadding(new Insets(20));
-        Label myBookingsTitle = new Label("📋 My Upcoming Bookings"); myBookingsTitle.setFont(Font.font("System", FontWeight.BOLD, 18));
+        Label myBookingsTitle = new Label("📋 My Bookings"); myBookingsTitle.setFont(Font.font("System", FontWeight.BOLD, 18));
         myBookingsTitle.setStyle("-fx-text-fill: #512DA8;");
 
         TableView<Appointment> ownerTable = new TableView<>();
-        TableColumn<Appointment, Integer> timeColO = new TableColumn<>("Time Slot"); timeColO.setCellValueFactory(new PropertyValueFactory<>("timeSlot"));
+        TableColumn<Appointment, String> dateColO = new TableColumn<>("Date"); dateColO.setCellValueFactory(new PropertyValueFactory<>("date"));
+        TableColumn<Appointment, Integer> timeColO = new TableColumn<>("Time"); timeColO.setCellValueFactory(new PropertyValueFactory<>("timeSlot"));
         TableColumn<Appointment, String> petColO = new TableColumn<>("Pet Name"); petColO.setCellValueFactory(new PropertyValueFactory<>("petName"));
-        TableColumn<Appointment, String> typeColO = new TableColumn<>("Case Type"); typeColO.setCellValueFactory(new PropertyValueFactory<>("caseType"));
-        ownerTable.getColumns().addAll(timeColO, petColO, typeColO);
+        TableColumn<Appointment, String> vetColO = new TableColumn<>("Veterinarian"); vetColO.setCellValueFactory(new PropertyValueFactory<>("vetName"));
+        TableColumn<Appointment, String> typeColO = new TableColumn<>("Reason"); typeColO.setCellValueFactory(new PropertyValueFactory<>("reason"));
+        TableColumn<Appointment, String> pmColO = new TableColumn<>("Payment"); pmColO.setCellValueFactory(new PropertyValueFactory<>("paymentMethod"));
+        TableColumn<Appointment, Double> priceColO = new TableColumn<>("Price (₱)"); priceColO.setCellValueFactory(new PropertyValueFactory<>("price"));
+        ownerTable.getColumns().addAll(dateColO, timeColO, petColO, vetColO, typeColO, pmColO, priceColO);
         ownerTable.setPrefHeight(200);
 
         Runnable refreshOwnerTable = () -> {
-            List<String> myPetNames = new ArrayList<>();
-            for (Pet p : petList.findByOwner(user.getUsername())) myPetNames.add(p.getName());
             List<Appointment> filtered = new ArrayList<>();
             for (Appointment a : allAppointments) {
-                if (myPetNames.contains(a.getPetName())) filtered.add(a);
+                if (user.getUsername().equals(a.getOwnerUsername())) filtered.add(a);
             }
             if (!filtered.isEmpty()) ClinicAlgorithms.quickSortAppointments(filtered, 0, filtered.size() - 1);
             ownerTable.getItems().setAll(filtered);
@@ -261,19 +283,43 @@ public class VetSetGoGUI extends Application {
         myBookingsCard.getChildren().addAll(myBookingsTitle, ownerTable);
 
         confirmBook.setOnAction(e -> {
+            if(datePicker.getValue() == null || vetBox.getValue() == null || slotBox.getValue() == null || aptPet.getText().isEmpty() || reasonBox.getValue() == null || paymentBox.getValue() == null) {
+                showAlert("Error", "Please fill in all booking fields.");
+                return;
+            }
             int targetSlot = slotBox.getValue();
             int idx = ClinicAlgorithms.binarySearchTimeSlot(clinicTimeSlots, targetSlot);
             if (idx == -1) { showAlert("Error", "Invalid Time Slot."); return; }
-            Appointment apt = new Appointment(aptPet.getText(), "Routine", 1, targetSlot);
-            appointmentQueue.enqueue(apt);
+
+            boolean conflict = false;
+            for(Appointment a : allAppointments) {
+                if(a.getVetName().equals(vetBox.getValue()) && a.getDate().equals(datePicker.getValue().toString()) && a.getTimeSlot() == targetSlot) {
+                    conflict = true;
+                    break;
+                }
+            }
+            if(conflict) {
+                showAlert("Error", "Time slot already booked for this veterinarian.");
+                return;
+            }
+
+            Appointment apt = new Appointment(user.getUsername(), aptPet.getText(), "Routine", 1, datePicker.getValue().toString(), targetSlot, vetBox.getValue(), reasonBox.getValue());
+            apt.setPaymentMethod(paymentBox.getValue());
             allAppointments.add(apt);
+            saveAllData();
             refreshOwnerTable.run();
 
             undoStack.push(() -> {
                 allAppointments.remove(apt);
+                saveAllData();
                 refreshOwnerTable.run();
             });
-            showAlert("Success", "Routine appointment queued for slot " + targetSlot);
+
+            Alert receipt = new Alert(Alert.AlertType.INFORMATION);
+            receipt.setTitle("Booking Receipt");
+            receipt.setHeaderText("Transaction Successful");
+            receipt.setContentText("Pet: " + apt.getPetName() + "\nVet: " + apt.getVetName() + "\nDate: " + apt.getDate() + "\nTime: " + apt.getTimeSlot() + "\nReason: " + apt.getReason() + "\nPayment Method: " + apt.getPaymentMethod());
+            receipt.showAndWait();
         });
 
         addPetBtn.setOnAction(e -> {
@@ -281,17 +327,19 @@ public class VetSetGoGUI extends Application {
             petList.add(p);
             petAvlTree.insert(p);
             speciesTree.addSpeciesAndBreed(p.getSpecies(), "Unknown");
+            saveAllData();
             refreshPets.run();
 
             undoStack.push(() -> {
                 petList.removeById(p.getId());
+                saveAllData();
                 refreshPets.run();
             });
         });
 
         content.getChildren().addAll(header, split, bookCard, myBookingsCard);
         root.setCenter(new ScrollPane(content));
-        return new Scene(root, 1000, 850);
+        return new Scene(root, 1050, 850);
     }
 
     private Scene buildPetProfileScene(Pet pet, User user) {
@@ -318,7 +366,7 @@ public class VetSetGoGUI extends Application {
         header.getChildren().addAll(title, spacer, prevViewedBtn, backBtn);
 
         VBox stats = new VBox(10);
-        stats.setStyle(CARD_STYLE + "-fx-border-color: #FFC107; -fx-border-width: 2;"); // THEME UPDATE
+        stats.setStyle(CARD_STYLE + "-fx-border-color: #FFC107; -fx-border-width: 2;");
         stats.setPadding(new Insets(15));
 
         TextField updateName = new TextField(pet.getName());
@@ -331,15 +379,17 @@ public class VetSetGoGUI extends Application {
             pet.setName(updateName.getText());
             pet.setAge(Integer.parseInt(updateAge.getText()));
             pet.setWeight(Double.parseDouble(updateWeight.getText()));
+            saveAllData();
 
-            undoStack.push(() -> { pet.setName(oldName); window.setScene(buildPetProfileScene(pet, user)); });
+            undoStack.push(() -> { pet.setName(oldName); saveAllData(); window.setScene(buildPetProfileScene(pet, user)); });
             showAlert("Success", "Record updated.");
         });
 
         Button deleteBtn = new Button("Delete Pet"); deleteBtn.setStyle(BTN_DANGER);
         deleteBtn.setOnAction(e -> {
             petList.removeById(pet.getId());
-            undoStack.push(() -> { petList.add(pet); });
+            saveAllData();
+            undoStack.push(() -> { petList.add(pet); saveAllData(); });
             showAlert("Deleted", "Pet removed from system.");
             window.setScene(user.getRole() == Role.PET_OWNER ? buildOwnerDashboard(user) : buildVetDashboard(user));
         });
@@ -390,7 +440,7 @@ public class VetSetGoGUI extends Application {
 
         Label welcome = new Label("Veterinarian Dashboard | Dr. " + user.getFullName());
         welcome.setFont(Font.font("System", FontWeight.BOLD, 22));
-        welcome.setStyle("-fx-text-fill: #512DA8;"); // THEME UPDATE
+        welcome.setStyle("-fx-text-fill: #512DA8;");
 
         HBox split = new HBox(20);
 
@@ -400,6 +450,11 @@ public class VetSetGoGUI extends Application {
         qTitle.setStyle("-fx-text-fill: #512DA8;");
         TextArea qLog = new TextArea(); qLog.setEditable(false); qLog.setPrefHeight(80);
         Button serveBtn = new Button("Call Next Patient"); serveBtn.setStyle(BTN_PRIMARY);
+
+        TextField dxField = new TextField(); dxField.setPromptText("Diagnosis");
+        TextField medField = new TextField(); medField.setPromptText("Medication");
+        TextField docFee = new TextField(); docFee.setPromptText("Doctor Fee (₱)");
+        Button completeBtn = new Button("Complete & Save"); completeBtn.setStyle(BTN_PRIMARY);
 
         VBox bfsCard = new VBox(15);
         bfsCard.setStyle(CARD_STYLE); bfsCard.setPadding(new Insets(20)); HBox.setHgrow(bfsCard, Priority.ALWAYS);
@@ -427,70 +482,139 @@ public class VetSetGoGUI extends Application {
         triageCard.setStyle(CARD_STYLE); triageCard.setPadding(new Insets(20));
         Label triageTitle = new Label("🚨 Triage & Book Patient"); triageTitle.setFont(Font.font("System", FontWeight.BOLD, 16));
         triageTitle.setStyle("-fx-text-fill: #512DA8;");
-        HBox triageForm = new HBox(10);
-        TextField tPet = new TextField(); tPet.setPromptText("Pet Name");
 
+        HBox triageForm1 = new HBox(10);
+        TextField tPet = new TextField(); tPet.setPromptText("Pet Name");
         ComboBox<String> typeBox = new ComboBox<>();
         typeBox.getItems().addAll("Routine", "Urgent", "Surgical");
         typeBox.setValue("Urgent");
-
         ComboBox<Integer> sevBox = new ComboBox<>();
         sevBox.getItems().addAll(1, 2, 3, 4, 5);
         sevBox.setValue(3);
         sevBox.setPromptText("Severity");
 
+        HBox triageForm2 = new HBox(10);
+        DatePicker tDate = new DatePicker(); tDate.setPromptText("Date");
         ComboBox<Integer> slotBox = new ComboBox<>();
         for (int s : clinicTimeSlots) slotBox.getItems().add(s);
         slotBox.setPromptText("Time Slot");
-
+        TextField tReason = new TextField(); tReason.setPromptText("Reason");
         Button tBookBtn = new Button("Add to Queue"); tBookBtn.setStyle(BTN_PRIMARY);
-        triageForm.getChildren().addAll(tPet, typeBox, sevBox, slotBox, tBookBtn);
-        triageCard.getChildren().addAll(triageTitle, triageForm);
+
+        triageForm1.getChildren().addAll(tPet, typeBox, sevBox);
+        triageForm2.getChildren().addAll(tDate, slotBox, tReason, tBookBtn);
+        triageCard.getChildren().addAll(triageTitle, triageForm1, triageForm2);
 
         VBox scheduleCard = new VBox(10);
         scheduleCard.setStyle(CARD_STYLE); scheduleCard.setPadding(new Insets(20));
-        Label schedTitle = new Label("📋 Full Daily Appointments Schedule"); schedTitle.setFont(Font.font("System", FontWeight.BOLD, 16));
+        Label schedTitle = new Label("📋 Full Appointments Schedule"); schedTitle.setFont(Font.font("System", FontWeight.BOLD, 16));
         schedTitle.setStyle("-fx-text-fill: #512DA8;");
 
         TableView<Appointment> schedTable = new TableView<>();
-        TableColumn<Appointment, Integer> timeCol = new TableColumn<>("Time Slot"); timeCol.setCellValueFactory(new PropertyValueFactory<>("timeSlot"));
+        TableColumn<Appointment, String> dateCol = new TableColumn<>("Date"); dateCol.setCellValueFactory(new PropertyValueFactory<>("date"));
+        TableColumn<Appointment, Integer> timeCol = new TableColumn<>("Time"); timeCol.setCellValueFactory(new PropertyValueFactory<>("timeSlot"));
         TableColumn<Appointment, String> petCol = new TableColumn<>("Pet Name"); petCol.setCellValueFactory(new PropertyValueFactory<>("petName"));
         TableColumn<Appointment, String> typeCol = new TableColumn<>("Case Type"); typeCol.setCellValueFactory(new PropertyValueFactory<>("caseType"));
         TableColumn<Appointment, Integer> sevCol = new TableColumn<>("Severity"); sevCol.setCellValueFactory(new PropertyValueFactory<>("severityLevel"));
-        schedTable.getColumns().addAll(timeCol, petCol, typeCol, sevCol);
+        TableColumn<Appointment, String> statCol = new TableColumn<>("Status"); statCol.setCellValueFactory(new PropertyValueFactory<>("status"));
+        schedTable.getColumns().addAll(dateCol, timeCol, petCol, typeCol, sevCol, statCol);
         schedTable.setPrefHeight(250);
 
         Runnable refreshSchedule = () -> {
-            List<Appointment> list = new ArrayList<>(allAppointments);
+            List<Appointment> list = new ArrayList<>();
+            for (Appointment a : allAppointments) {
+                if (a.getVetName().equals("Dr. " + user.getFullName())) {
+                    list.add(a);
+                }
+            }
             if (!list.isEmpty()) ClinicAlgorithms.quickSortAppointments(list, 0, list.size() - 1);
             schedTable.getItems().setAll(list);
         };
         refreshSchedule.run();
 
         tBookBtn.setOnAction(e -> {
-            if(slotBox.getValue() == null) { showAlert("Error", "Select a time slot"); return; }
-            Appointment apt = new Appointment(tPet.getText(), typeBox.getValue(), sevBox.getValue(), slotBox.getValue());
+            if(slotBox.getValue() == null || tDate.getValue() == null) { showAlert("Error", "Select a date and time slot"); return; }
+
+            boolean conflict = false;
+            for(Appointment a : allAppointments) {
+                if(a.getVetName().equals("Dr. " + user.getFullName()) && a.getDate().equals(tDate.getValue().toString()) && a.getTimeSlot() == slotBox.getValue()) {
+                    conflict = true;
+                    break;
+                }
+            }
+            if(conflict) {
+                showAlert("Error", "Time slot already booked for this veterinarian.");
+                return;
+            }
+
+            String ownerUser = "";
+            for (Pet p : petList.toList()) {
+                if (p.getName().equalsIgnoreCase(tPet.getText())) {
+                    ownerUser = p.getOwnerUsername();
+                    break;
+                }
+            }
+
+            Appointment apt = new Appointment(ownerUser, tPet.getText(), typeBox.getValue(), sevBox.getValue(), tDate.getValue().toString(), slotBox.getValue(), "Dr. " + user.getFullName(), tReason.getText());
             allAppointments.add(apt);
-            if (apt.getTriageScore() >= 50) priorityHeap.insert(apt);
-            else appointmentQueue.enqueue(apt);
+            saveAllData();
             refreshSchedule.run();
             undoStack.push(() -> {
                 allAppointments.remove(apt);
+                saveAllData();
                 refreshSchedule.run();
             });
             showAlert("Success", "Patient triaged and queued.");
         });
 
         serveBtn.setOnAction(e -> {
-            Appointment next = priorityHeap.extractMax();
-            if (next == null) next = appointmentQueue.dequeue();
-            if (next != null) {
-                allAppointments.remove(next);
-                qLog.setText("Serving: " + next.getPetName() + "\nTriage Score: " + next.getTriageScore() + "\nSlot: " + next.getTimeSlot());
-                refreshSchedule.run();
-            } else { qLog.setText("No patients waiting."); }
+            activePatient = null;
+            List<Appointment> pending = new ArrayList<>();
+            for(Appointment a : allAppointments) {
+                if(a.getVetName().equals("Dr. " + user.getFullName()) && "Pending".equals(a.getStatus())) {
+                    pending.add(a);
+                }
+            }
+            if(!pending.isEmpty()) {
+                pending.sort((a1, a2) -> {
+                    if (a1.getTriageScore() != a2.getTriageScore())
+                        return Integer.compare(a2.getTriageScore(), a1.getTriageScore());
+                    return Long.compare(a1.getArrivalTimestamp(), a2.getArrivalTimestamp());
+                });
+                activePatient = pending.get(0);
+                qLog.setText("Serving: " + activePatient.getPetName() + "\nTriage Score: " + activePatient.getTriageScore() + "\nReason: " + activePatient.getReason());
+            } else {
+                qLog.setText("No patients waiting.");
+            }
         });
-        queueCard.getChildren().addAll(qTitle, serveBtn, qLog);
+
+        completeBtn.setOnAction(e -> {
+            if(activePatient != null) {
+                if(dxField.getText().isEmpty() || docFee.getText().isEmpty()) {
+                    showAlert("Error", "Diagnosis and Doctor Fee cannot be empty.");
+                    return;
+                }
+                activePatient.setPrice(Double.parseDouble(docFee.getText()));
+                activePatient.setStatus("Completed");
+
+                String logEntry = "Date: " + activePatient.getDate() + " | Vet: " + activePatient.getVetName() + " | Dx: " + dxField.getText() + " | Meds: " + medField.getText() + " | Fee: ₱" + docFee.getText();
+                for(Pet p : petList.toList()) {
+                    if(p.getName().equalsIgnoreCase(activePatient.getPetName()) && p.getOwnerUsername().equals(activePatient.getOwnerUsername())) {
+                        p.addMedicalRecord(logEntry);
+                    }
+                }
+                saveAllData();
+                showAlert("Success", "Consultation complete. Details saved to pet's medical record.");
+                activePatient = null;
+                qLog.setText("");
+                dxField.clear(); medField.clear(); docFee.clear();
+                refreshSchedule.run();
+            } else {
+                showAlert("Notice", "No active patient being served.");
+            }
+        });
+
+        queueCard.getChildren().addAll(qTitle, serveBtn, qLog, dxField, medField, docFee, completeBtn);
         scheduleCard.getChildren().addAll(schedTitle, schedTable);
 
         HBox searchForm = new HBox(10);
@@ -538,10 +662,10 @@ public class VetSetGoGUI extends Application {
     private HBox buildNavBar(User user) {
         HBox nav = new HBox(15);
         nav.setPadding(new Insets(15, 20, 15, 20));
-        nav.setStyle("-fx-background-color: #512DA8;"); // THEME UPDATE
+        nav.setStyle("-fx-background-color: #512DA8;");
         nav.setAlignment(Pos.CENTER_LEFT);
         Label brand = new Label("🐾 VetSetGo"); brand.setFont(Font.font("System", FontWeight.BOLD, 20));
-        brand.setTextFill(Color.web("#FFC107")); // THEME UPDATE
+        brand.setTextFill(Color.web("#FFC107"));
         Region spacer = new Region(); HBox.setHgrow(spacer, Priority.ALWAYS);
         nav.getChildren().addAll(brand, spacer);
 
@@ -551,7 +675,6 @@ public class VetSetGoGUI extends Application {
             loginBtn.setOnAction(e -> window.setScene(buildLoginScene())); nav.getChildren().add(loginBtn);
         } else {
             Button logoutBtn = new Button("Logout");
-            // THEME UPDATE: Yellow button, Purple text for contrast
             logoutBtn.setStyle("-fx-background-color: #FFC107; -fx-text-fill: #512DA8; -fx-font-weight: bold; -fx-background-radius: 4;");
             logoutBtn.setOnAction(e -> { auth.logout(); window.setScene(buildLoginScene()); }); nav.getChildren().add(logoutBtn);
         }
@@ -587,7 +710,9 @@ public class VetSetGoGUI extends Application {
         try {
             if (storage.usersFileExists()) auth.loadUsers(storage.loadUsers());
             if (auth.getUsers().isEmpty()) {
-                auth.register("vet", "Dr. Bob Miller", Role.VETERINARIAN, "vet123");
+                auth.register("vet1", "Bob Miller", Role.VETERINARIAN, "vet123");
+                auth.register("vet2", "Sarah Jenkins", Role.VETERINARIAN, "vet123");
+                auth.register("vet3", "Mike Davis", Role.VETERINARIAN, "vet123");
                 auth.register("owner", "Alice Johnson", Role.PET_OWNER, "owner123");
             }
             petList = storage.loadPets();
@@ -598,8 +723,6 @@ public class VetSetGoGUI extends Application {
             }
             for (Appointment a : storage.loadAppointments()) {
                 allAppointments.add(a);
-                if (a.getTriageScore() >= 50) priorityHeap.insert(a);
-                else appointmentQueue.enqueue(a);
             }
         } catch (IOException ex) { System.err.println("Load error: " + ex.getMessage()); }
     }
