@@ -27,7 +27,6 @@ public class FileStorage {
                 User u = new User(f[0], f[1], Role.fromString(f[2]), f[3], f[4]);
                 out.put(u.getUsername(), u);
             } catch (IllegalArgumentException bad) {
-                System.err.println("Skipping corrupt user: " + String.join("|", f));
             }
         }
         return out;
@@ -51,7 +50,6 @@ public class FileStorage {
                 }
                 list.add(p);
             } catch (NumberFormatException bad) {
-                System.err.println("Skipping corrupt pet: " + String.join("|", f));
             }
         }
         return list;
@@ -70,11 +68,18 @@ public class FileStorage {
 
     public List<Appointment> loadAppointments() throws IOException {
         List<Appointment> list = new ArrayList<>();
-        for (String[] f : readRecords(appointmentsFile, 4)) {
+        for (String[] f : readRecords(appointmentsFile, 8)) {
             try {
-                list.add(new Appointment(f[0], f[1], Integer.parseInt(f[2]), Integer.parseInt(f[3])));
-            } catch (NumberFormatException e) {
-                System.err.println("Skipping corrupt appointment");
+                if (f.length >= 11) {
+                    list.add(new Appointment(f[0], f[1], f[2], Integer.parseInt(f[3]), f[4], Integer.parseInt(f[5]), f[6], f[7], Double.parseDouble(f[8]), f[9], f[10]));
+                } else if (f.length == 10) {
+                    list.add(new Appointment("", f[0], f[1], Integer.parseInt(f[2]), f[3], Integer.parseInt(f[4]), f[5], f[6], Double.parseDouble(f[7]), f[8], f[9]));
+                } else if (f.length == 8) {
+                    list.add(new Appointment(f[0], f[1], f[2], Integer.parseInt(f[3]), f[4], Integer.parseInt(f[5]), f[6], f[7]));
+                } else if (f.length == 7) {
+                    list.add(new Appointment("", f[0], f[1], Integer.parseInt(f[2]), f[3], Integer.parseInt(f[4]), f[5], f[6]));
+                }
+            } catch (Exception e) {
             }
         }
         return list;
@@ -83,8 +88,7 @@ public class FileStorage {
     public void saveAppointments(List<Appointment> appointments) throws IOException {
         List<String[]> rows = new ArrayList<>();
         for (Appointment a : appointments) {
-            // FIXED: Now properly extracts actual case type and severity instead of hardcoding
-            rows.add(new String[]{a.getPetName(), a.getCaseType(), String.valueOf(a.getSeverityLevel()), String.valueOf(a.getTimeSlot())});
+            rows.add(new String[]{a.getOwnerUsername(), a.getPetName(), a.getCaseType(), String.valueOf(a.getSeverityLevel()), a.getDate(), String.valueOf(a.getTimeSlot()), a.getVetName(), a.getReason(), String.valueOf(a.getPrice()), a.getPaymentMethod(), a.getStatus()});
         }
         writeRecords(appointmentsFile, rows);
     }
@@ -121,6 +125,7 @@ public class FileStorage {
     }
 
     static String escape(String s) {
+        if (s == null) return "";
         StringBuilder sb = new StringBuilder();
         for (char c : s.toCharArray()) {
             switch (c) {
