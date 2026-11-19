@@ -44,7 +44,7 @@ public class FileStorage {
         PetLinkedList list = new PetLinkedList();
         for (String[] f : readRecords(petsFile, 7)) {
             try {
-                Pet p = new Pet(Integer.parseInt(f[0]), f[1], f[2], "", Integer.parseInt(f[3]), Double.parseDouble(f[4]), "", f[5]);
+                Pet p = new Pet(Integer.parseInt(f[0]), f[1], f[2], Integer.parseInt(f[3]), Double.parseDouble(f[4]), f[5]);
                 if (!f[6].isEmpty()) {
                     p.setMedicalHistory(new ArrayList<>(Arrays.asList(f[6].split(";;"))));
                 }

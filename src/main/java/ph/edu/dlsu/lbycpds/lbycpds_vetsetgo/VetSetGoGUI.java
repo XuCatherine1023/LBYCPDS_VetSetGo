@@ -323,7 +323,7 @@ public class VetSetGoGUI extends Application {
         });
 
         addPetBtn.setOnAction(e -> {
-            Pet p = new Pet(nextPetId++, "", pName.getText(), pSpecies.getText(), Integer.parseInt(pAge.getText()), Double.parseDouble(pWeight.getText()), "", user.getUsername());
+            Pet p = new Pet(nextPetId++, pName.getText(), pSpecies.getText(), Integer.parseInt(pAge.getText()), Double.parseDouble(pWeight.getText()), user.getUsername());
             petList.add(p);
             petAvlTree.insert(p);
             speciesTree.addSpeciesAndBreed(p.getSpecies(), "Unknown");

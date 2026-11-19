@@ -12,7 +12,7 @@ public class Pet {
     private final String ownerUsername;
     private List<String> medicalHistory;
 
-    public Pet(int id, String string, String name, String species, int age, double weight, String s, String ownerUsername) {
+    public Pet(int id, String name, String species, int age, double weight, String ownerUsername) {
         this.id = id;
         this.name = name;
         this.species = species;
