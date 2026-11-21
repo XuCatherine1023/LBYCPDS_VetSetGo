@@ -13,11 +13,16 @@ public class ClinicAlgorithms {
         }
     }
 
+    private static int compareSchedule(Appointment a, Appointment b) {
+        int byDate = a.getDate().compareTo(b.getDate());
+        return byDate != 0 ? byDate : Integer.compare(a.getTimeSlot(), b.getTimeSlot());
+    }
+
     private static int partitionAppointments(List<Appointment> list, int low, int high) {
-        int pivot = list.get(high).getTimeSlot();
+        Appointment pivot = list.get(high);
         int i = (low - 1);
         for (int j = low; j < high; j++) {
-            if (list.get(j).getTimeSlot() < pivot) {
+            if (compareSchedule(list.get(j), pivot) < 0) {
                 i++;
                 Collections.swap(list, i, j);
             }
