@@ -24,6 +24,8 @@ public class VetSetGoGUI extends Application {
     private static final String BTN_DANGER = "-fx-background-color: #dc3545; -fx-text-fill: white; -fx-background-radius: 5;";
     private static final String CARD_STYLE = "-fx-background-color: white; -fx-border-color: #D1C4E9; -fx-border-radius: 8; -fx-background-radius: 8; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 10, 0, 0, 4);";
 
+    private static final String ALL_VETS = "All Veterinarians";
+
     private Stage window;
     private final FileStorage storage = new FileStorage("data");
     private final AuthService auth = new AuthService();
@@ -541,30 +543,52 @@ public class VetSetGoGUI extends Application {
 
         VBox scheduleCard = new VBox(10);
         scheduleCard.setStyle(CARD_STYLE); scheduleCard.setPadding(new Insets(20));
-        Label schedTitle = new Label("📋 Full Appointments Schedule"); schedTitle.setFont(Font.font("System", FontWeight.BOLD, 16));
+        Label schedTitle = new Label("📋 Clinic Transactions & Appointments (All Veterinarians)"); schedTitle.setFont(Font.font("System", FontWeight.BOLD, 16));
         schedTitle.setStyle("-fx-text-fill: #512DA8;");
+
+        ComboBox<String> vetFilter = new ComboBox<>();
+        vetFilter.getItems().add(ALL_VETS);
+        for (User u : auth.getUsers().values()) {
+            if (u.getRole() == Role.VETERINARIAN) vetFilter.getItems().add("Dr. " + u.getFullName());
+        }
+        vetFilter.setValue(ALL_VETS);
+        Label txSummary = new Label();
+        txSummary.setStyle("-fx-font-weight: bold; -fx-text-fill: #512DA8;");
+        Region filterSpacer = new Region(); HBox.setHgrow(filterSpacer, Priority.ALWAYS);
+        HBox filterRow = new HBox(10, new Label("Show:"), vetFilter, filterSpacer, txSummary);
+        filterRow.setAlignment(Pos.CENTER_LEFT);
 
         TableView<Appointment> schedTable = new TableView<>();
         TableColumn<Appointment, String> dateCol = new TableColumn<>("Date"); dateCol.setCellValueFactory(new PropertyValueFactory<>("date"));
         TableColumn<Appointment, String> timeCol = slotColumn();
         TableColumn<Appointment, String> petCol = new TableColumn<>("Pet Name"); petCol.setCellValueFactory(new PropertyValueFactory<>("petName"));
+        TableColumn<Appointment, String> ownerCol = new TableColumn<>("Owner"); ownerCol.setCellValueFactory(new PropertyValueFactory<>("ownerUsername"));
+        TableColumn<Appointment, String> vetCol = new TableColumn<>("Veterinarian"); vetCol.setCellValueFactory(new PropertyValueFactory<>("vetName"));
         TableColumn<Appointment, String> typeCol = new TableColumn<>("Case Type"); typeCol.setCellValueFactory(new PropertyValueFactory<>("caseType"));
         TableColumn<Appointment, Integer> sevCol = new TableColumn<>("Severity"); sevCol.setCellValueFactory(new PropertyValueFactory<>("severityLevel"));
+        TableColumn<Appointment, String> reasonCol = new TableColumn<>("Reason"); reasonCol.setCellValueFactory(new PropertyValueFactory<>("reason"));
+        TableColumn<Appointment, String> payCol = new TableColumn<>("Payment"); payCol.setCellValueFactory(new PropertyValueFactory<>("paymentMethod"));
+        TableColumn<Appointment, Double> priceCol = new TableColumn<>("Price (₱)"); priceCol.setCellValueFactory(new PropertyValueFactory<>("price"));
         TableColumn<Appointment, String> statCol = new TableColumn<>("Status"); statCol.setCellValueFactory(new PropertyValueFactory<>("status"));
-        schedTable.getColumns().addAll(dateCol, timeCol, petCol, typeCol, sevCol, statCol);
-        schedTable.setPrefHeight(250);
+        schedTable.getColumns().addAll(dateCol, timeCol, petCol, ownerCol, vetCol, typeCol, sevCol, reasonCol, payCol, priceCol, statCol);
+        schedTable.setPrefHeight(280);
 
         Runnable refreshSchedule = () -> {
+            String filter = vetFilter.getValue();
             List<Appointment> list = new ArrayList<>();
+            int completed = 0;
+            double revenue = 0;
             for (Appointment a : allAppointments) {
-                if (a.getVetName().equals("Dr. " + user.getFullName())) {
-                    list.add(a);
-                }
+                if (filter != null && !ALL_VETS.equals(filter) && !a.getVetName().equals(filter)) continue;
+                list.add(a);
+                if ("Completed".equals(a.getStatus())) { completed++; revenue += a.getPrice(); }
             }
             if (!list.isEmpty()) ClinicAlgorithms.quickSortAppointments(list, 0, list.size() - 1);
             schedTable.getItems().setAll(list);
+            txSummary.setText(String.format("Transactions: %d  |  Completed: %d  |  Revenue: ₱%.2f", list.size(), completed, revenue));
         };
         refreshSchedule.run();
+        vetFilter.setOnAction(e -> refreshSchedule.run());
         HBox vetRescheduleBar = buildRescheduleBar(schedTable, refreshSchedule);
 
         tBookBtn.setOnAction(e -> {
@@ -669,7 +693,7 @@ public class VetSetGoGUI extends Application {
         Label medLabel = new Label("Medication"); medLabel.setStyle("-fx-font-weight: bold;");
         Label feeLabel = new Label("Doctor Fee (₱)"); feeLabel.setStyle("-fx-font-weight: bold;");
         queueCard.getChildren().addAll(qTitle, serveBtn, qLog, dxLabel, dxField, medLabel, medField, feeLabel, docFee, completeBtn);
-        scheduleCard.getChildren().addAll(schedTitle, schedTable, vetRescheduleBar);
+        scheduleCard.getChildren().addAll(schedTitle, filterRow, schedTable, vetRescheduleBar);
 
         HBox searchForm = new HBox(10);
         TextField searchId = new TextField(); searchId.setPromptText("AVL Search by ID");
