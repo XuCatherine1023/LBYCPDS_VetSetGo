@@ -525,7 +525,19 @@ public class VetSetGoGUI extends Application {
 
         triageForm1.getChildren().addAll(tPet, typeBox, sevBox);
         triageForm2.getChildren().addAll(tDate, slotBox, tReason, tBookBtn);
-        triageCard.getChildren().addAll(triageTitle, triageForm1, triageForm2);
+        Label bypassNote = new Label("Urgent cases bypass date/time-slot booking: no slot is needed, they are never blocked by a slot conflict, and any vet can take them next.");
+        bypassNote.setWrapText(true);
+        bypassNote.setStyle("-fx-text-fill: #dc3545; -fx-font-style: italic;");
+        triageCard.getChildren().addAll(triageTitle, triageForm1, triageForm2, bypassNote);
+
+        Runnable applyUrgentBypass = () -> {
+            boolean urgent = "Urgent".equals(typeBox.getValue());
+            tDate.setDisable(urgent);
+            slotBox.setDisable(urgent);
+            if (urgent) { tDate.setValue(null); slotBox.setValue(null); }
+        };
+        typeBox.setOnAction(e -> applyUrgentBypass.run());
+        applyUrgentBypass.run();
 
         VBox scheduleCard = new VBox(10);
         scheduleCard.setStyle(CARD_STYLE); scheduleCard.setPadding(new Insets(20));
@@ -534,7 +546,7 @@ public class VetSetGoGUI extends Application {
 
         TableView<Appointment> schedTable = new TableView<>();
         TableColumn<Appointment, String> dateCol = new TableColumn<>("Date"); dateCol.setCellValueFactory(new PropertyValueFactory<>("date"));
-        TableColumn<Appointment, Integer> timeCol = new TableColumn<>("Time"); timeCol.setCellValueFactory(new PropertyValueFactory<>("timeSlot"));
+        TableColumn<Appointment, String> timeCol = slotColumn();
         TableColumn<Appointment, String> petCol = new TableColumn<>("Pet Name"); petCol.setCellValueFactory(new PropertyValueFactory<>("petName"));
         TableColumn<Appointment, String> typeCol = new TableColumn<>("Case Type"); typeCol.setCellValueFactory(new PropertyValueFactory<>("caseType"));
         TableColumn<Appointment, Integer> sevCol = new TableColumn<>("Severity"); sevCol.setCellValueFactory(new PropertyValueFactory<>("severityLevel"));
@@ -556,29 +568,35 @@ public class VetSetGoGUI extends Application {
         HBox vetRescheduleBar = buildRescheduleBar(schedTable, refreshSchedule);
 
         tBookBtn.setOnAction(e -> {
-            if(slotBox.getValue() == null || tDate.getValue() == null) { showAlert("Error", "Select a date and time slot"); return; }
+            if (tPet.getText().trim().isEmpty()) { showAlert("Error", "Enter the pet's name."); return; }
+            boolean urgent = "Urgent".equals(typeBox.getValue());
+            String myVetName = "Dr. " + user.getFullName();
+            String bookDate;
+            int bookSlot;
 
-            boolean conflict = false;
-            for(Appointment a : allAppointments) {
-                if(a.getVetName().equals("Dr. " + user.getFullName()) && a.getDate().equals(tDate.getValue().toString()) && a.getTimeSlot() == slotBox.getValue()) {
-                    conflict = true;
-                    break;
+            if (urgent) {
+                bookDate = LocalDate.now().toString();
+                bookSlot = Appointment.WALK_IN_SLOT;
+            } else {
+                if (slotBox.getValue() == null || tDate.getValue() == null) { showAlert("Error", "Select a date and time slot"); return; }
+                bookDate = tDate.getValue().toString();
+                bookSlot = slotBox.getValue();
+                if (hasConflict(myVetName, bookDate, bookSlot, null)) {
+                    showAlert("Error", "Time slot already booked for this veterinarian.");
+                    return;
                 }
-            }
-            if(conflict) {
-                showAlert("Error", "Time slot already booked for this veterinarian.");
-                return;
             }
 
             String ownerUser = "";
             for (Pet p : petList.toList()) {
-                if (p.getName().equalsIgnoreCase(tPet.getText())) {
+                if (p.getName().equalsIgnoreCase(tPet.getText().trim())) {
                     ownerUser = p.getOwnerUsername();
                     break;
                 }
             }
 
-            Appointment apt = new Appointment(ownerUser, tPet.getText(), typeBox.getValue(), sevBox.getValue(), tDate.getValue().toString(), slotBox.getValue(), "Dr. " + user.getFullName(), tReason.getText());
+            int severity = sevBox.getValue() == null ? 3 : sevBox.getValue();
+            Appointment apt = new Appointment(ownerUser, tPet.getText().trim(), typeBox.getValue(), severity, bookDate, bookSlot, myVetName, tReason.getText());
             allAppointments.add(apt);
             saveAllData();
             refreshSchedule.run();
@@ -587,14 +605,16 @@ public class VetSetGoGUI extends Application {
                 saveAllData();
                 refreshSchedule.run();
             });
-            showAlert("Success", "Patient triaged and queued.");
+            showAlert("Success", urgent
+                    ? "Urgent case added. It bypassed slot booking and will be called first."
+                    : "Patient triaged and queued.");
         });
 
         serveBtn.setOnAction(e -> {
             activePatient = null;
             List<Appointment> pending = new ArrayList<>();
             for(Appointment a : allAppointments) {
-                if(a.getVetName().equals("Dr. " + user.getFullName()) && "Pending".equals(a.getStatus())) {
+                if("Pending".equals(a.getStatus()) && (a.getVetName().equals("Dr. " + user.getFullName()) || a.isUrgent())) {
                     pending.add(a);
                 }
             }
@@ -605,7 +625,15 @@ public class VetSetGoGUI extends Application {
                     return Long.compare(a1.getArrivalTimestamp(), a2.getArrivalTimestamp());
                 });
                 activePatient = pending.get(0);
-                qLog.setText("Serving: " + activePatient.getPetName() + "\nTriage Score: " + activePatient.getTriageScore() + "\nReason: " + activePatient.getReason());
+                String myVet = "Dr. " + user.getFullName();
+                String takeoverNote = "";
+                if (!activePatient.getVetName().equals(myVet)) {
+                    takeoverNote = "\nURGENT BYPASS: taken over from " + activePatient.getVetName();
+                    activePatient.setVetName(myVet);
+                    saveAllData();
+                    refreshSchedule.run();
+                }
+                qLog.setText("Serving: " + activePatient.getPetName() + "\nTriage Score: " + activePatient.getTriageScore() + "\nReason: " + activePatient.getReason() + takeoverNote);
             } else {
                 qLog.setText("No patients waiting.");
             }
