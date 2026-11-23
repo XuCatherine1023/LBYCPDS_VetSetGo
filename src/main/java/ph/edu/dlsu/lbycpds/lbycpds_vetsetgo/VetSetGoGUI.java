@@ -11,7 +11,9 @@ import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
 import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.beans.property.SimpleStringProperty;
 import java.io.IOException;
+import java.time.LocalDate;
 import java.util.*;
 
 public class VetSetGoGUI extends Application {
@@ -262,13 +264,14 @@ public class VetSetGoGUI extends Application {
 
         TableView<Appointment> ownerTable = new TableView<>();
         TableColumn<Appointment, String> dateColO = new TableColumn<>("Date"); dateColO.setCellValueFactory(new PropertyValueFactory<>("date"));
-        TableColumn<Appointment, Integer> timeColO = new TableColumn<>("Time"); timeColO.setCellValueFactory(new PropertyValueFactory<>("timeSlot"));
+        TableColumn<Appointment, String> timeColO = slotColumn();
         TableColumn<Appointment, String> petColO = new TableColumn<>("Pet Name"); petColO.setCellValueFactory(new PropertyValueFactory<>("petName"));
         TableColumn<Appointment, String> vetColO = new TableColumn<>("Veterinarian"); vetColO.setCellValueFactory(new PropertyValueFactory<>("vetName"));
         TableColumn<Appointment, String> typeColO = new TableColumn<>("Reason"); typeColO.setCellValueFactory(new PropertyValueFactory<>("reason"));
         TableColumn<Appointment, String> pmColO = new TableColumn<>("Payment"); pmColO.setCellValueFactory(new PropertyValueFactory<>("paymentMethod"));
         TableColumn<Appointment, Double> priceColO = new TableColumn<>("Price (₱)"); priceColO.setCellValueFactory(new PropertyValueFactory<>("price"));
-        ownerTable.getColumns().addAll(dateColO, timeColO, petColO, vetColO, typeColO, pmColO, priceColO);
+        TableColumn<Appointment, String> statColO = new TableColumn<>("Status"); statColO.setCellValueFactory(new PropertyValueFactory<>("status"));
+        ownerTable.getColumns().addAll(dateColO, timeColO, petColO, vetColO, typeColO, pmColO, priceColO, statColO);
         ownerTable.setPrefHeight(200);
 
         Runnable refreshOwnerTable = () -> {
@@ -280,7 +283,8 @@ public class VetSetGoGUI extends Application {
             ownerTable.getItems().setAll(filtered);
         };
         refreshOwnerTable.run();
-        myBookingsCard.getChildren().addAll(myBookingsTitle, ownerTable);
+        HBox rescheduleBar = buildRescheduleBar(ownerTable, refreshOwnerTable);
+        myBookingsCard.getChildren().addAll(myBookingsTitle, ownerTable, rescheduleBar);
 
         confirmBook.setOnAction(e -> {
             if(datePicker.getValue() == null || vetBox.getValue() == null || slotBox.getValue() == null || aptPet.getText().isEmpty() || reasonBox.getValue() == null || paymentBox.getValue() == null) {
@@ -291,13 +295,7 @@ public class VetSetGoGUI extends Application {
             int idx = ClinicAlgorithms.binarySearchTimeSlot(clinicTimeSlots, targetSlot);
             if (idx == -1) { showAlert("Error", "Invalid Time Slot."); return; }
 
-            boolean conflict = false;
-            for(Appointment a : allAppointments) {
-                if(a.getVetName().equals(vetBox.getValue()) && a.getDate().equals(datePicker.getValue().toString()) && a.getTimeSlot() == targetSlot) {
-                    conflict = true;
-                    break;
-                }
-            }
+            boolean conflict = hasConflict(vetBox.getValue(), datePicker.getValue().toString(), targetSlot, null);
             if(conflict) {
                 showAlert("Error", "Time slot already booked for this veterinarian.");
                 return;
@@ -406,22 +404,46 @@ public class VetSetGoGUI extends Application {
         Label medTitle = new Label("🩺 Medical History"); medTitle.setFont(Font.font("System", FontWeight.BOLD, 18));
         medTitle.setStyle("-fx-text-fill: #512DA8;");
         VBox medList = new VBox(10);
+        int recordNo = 1;
         for (String log : pet.getMedicalHistory()) {
-            Label l = new Label("• " + log);
-            l.setStyle(CARD_STYLE); l.setPadding(new Insets(10)); l.setMaxWidth(Double.MAX_VALUE);
-            medList.getChildren().add(l);
+            VBox recordCard = new VBox(6);
+            recordCard.setStyle(CARD_STYLE); recordCard.setPadding(new Insets(12)); recordCard.setMaxWidth(Double.MAX_VALUE);
+            Label recordTag = new Label("Visit Record #" + recordNo++);
+            recordTag.setStyle("-fx-font-weight: bold; -fx-text-fill: #512DA8;");
+            GridPane fieldGrid = new GridPane();
+            fieldGrid.setHgap(12); fieldGrid.setVgap(4);
+            int row = 0;
+            for (String[] field : parseMedicalEntry(log)) {
+                Label key = new Label(field[0] + ":");
+                key.setStyle("-fx-font-weight: bold;");
+                key.setMinWidth(100);
+                Label val = new Label(field[1]);
+                val.setWrapText(true);
+                fieldGrid.add(key, 0, row);
+                fieldGrid.add(val, 1, row);
+                row++;
+            }
+            recordCard.getChildren().addAll(recordTag, fieldGrid);
+            medList.getChildren().add(recordCard);
+        }
+        if (pet.getMedicalHistory().isEmpty()) {
+            medList.getChildren().add(new Label("No medical records yet."));
         }
 
         if (user.getRole() == Role.VETERINARIAN) {
-            HBox addMedForm = new HBox(10);
+            VBox addMedForm = new VBox(6);
+            addMedForm.setStyle(CARD_STYLE); addMedForm.setPadding(new Insets(12));
+            Label addMedLabel = new Label("Add Medical Record (Diagnosis / Notes):");
+            addMedLabel.setStyle("-fx-font-weight: bold; -fx-text-fill: #512DA8;");
             TextField logField = new TextField(); logField.setPromptText("Diagnosis Notes...");
             Button addLogBtn = new Button("Save Record"); addLogBtn.setStyle(BTN_PRIMARY);
             addLogBtn.setOnAction(e -> {
-                pet.addMedicalRecord(logField.getText());
+                if (logField.getText().trim().isEmpty()) { showAlert("Error", "Enter a diagnosis or note first."); return; }
+                pet.addMedicalRecord("Date: " + LocalDate.now() + " | Vet: Dr. " + user.getFullName() + " | Notes: " + logField.getText().trim());
                 saveAllData();
                 window.setScene(buildPetProfileScene(pet, user));
             });
-            addMedForm.getChildren().addAll(logField, addLogBtn);
+            addMedForm.getChildren().addAll(addMedLabel, logField, addLogBtn);
             medList.getChildren().add(0, addMedForm);
         }
 
@@ -531,6 +553,7 @@ public class VetSetGoGUI extends Application {
             schedTable.getItems().setAll(list);
         };
         refreshSchedule.run();
+        HBox vetRescheduleBar = buildRescheduleBar(schedTable, refreshSchedule);
 
         tBookBtn.setOnAction(e -> {
             if(slotBox.getValue() == null || tDate.getValue() == null) { showAlert("Error", "Select a date and time slot"); return; }
@@ -614,8 +637,11 @@ public class VetSetGoGUI extends Application {
             }
         });
 
-        queueCard.getChildren().addAll(qTitle, serveBtn, qLog, dxField, medField, docFee, completeBtn);
-        scheduleCard.getChildren().addAll(schedTitle, schedTable);
+        Label dxLabel = new Label("Diagnosis"); dxLabel.setStyle("-fx-font-weight: bold;");
+        Label medLabel = new Label("Medication"); medLabel.setStyle("-fx-font-weight: bold;");
+        Label feeLabel = new Label("Doctor Fee (₱)"); feeLabel.setStyle("-fx-font-weight: bold;");
+        queueCard.getChildren().addAll(qTitle, serveBtn, qLog, dxLabel, dxField, medLabel, medField, feeLabel, docFee, completeBtn);
+        scheduleCard.getChildren().addAll(schedTitle, schedTable, vetRescheduleBar);
 
         HBox searchForm = new HBox(10);
         TextField searchId = new TextField(); searchId.setPromptText("AVL Search by ID");
@@ -656,6 +682,100 @@ public class VetSetGoGUI extends Application {
         content.getChildren().addAll(welcome, split, triageCard, scheduleCard, searchLabel, searchForm, searchResultLog);
         root.setCenter(new ScrollPane(content));
         return new Scene(root, 1000, 850);
+    }
+
+    private static String slotText(int slot) {
+        return slot == Appointment.WALK_IN_SLOT ? "Walk-in" : String.valueOf(slot);
+    }
+
+    private TableColumn<Appointment, String> slotColumn() {
+        TableColumn<Appointment, String> col = new TableColumn<>("Time");
+        col.setCellValueFactory(cd -> new SimpleStringProperty(slotText(cd.getValue().getTimeSlot())));
+        return col;
+    }
+
+    private boolean hasConflict(String vetName, String date, int slot, Appointment ignore) {
+        if (slot == Appointment.WALK_IN_SLOT) return false;
+        for (Appointment a : allAppointments) {
+            if (a == ignore || a.isWalkIn()) continue;
+            if (a.getVetName().equals(vetName) && a.getDate().equals(date) && a.getTimeSlot() == slot) return true;
+        }
+        return false;
+    }
+
+    private HBox buildRescheduleBar(TableView<Appointment> table, Runnable afterChange) {
+        Label lbl = new Label("Reschedule selected booking:");
+        lbl.setStyle("-fx-font-weight: bold; -fx-text-fill: #512DA8;");
+        DatePicker newDate = new DatePicker(); newDate.setPromptText("New Date");
+        ComboBox<Integer> newSlot = new ComboBox<>();
+        for (int s : clinicTimeSlots) newSlot.getItems().add(s);
+        newSlot.setPromptText("New Time Slot");
+        Button changeBtn = new Button("Change Booking"); changeBtn.setStyle(BTN_PRIMARY);
+
+        table.getSelectionModel().selectedItemProperty().addListener((obs, oldSel, sel) -> {
+            newDate.setValue(null);
+            newSlot.setValue(null);
+            if (sel != null && !sel.isWalkIn()) {
+                try { newDate.setValue(LocalDate.parse(sel.getDate())); } catch (Exception ignored) { }
+                newSlot.setValue(sel.getTimeSlot());
+            }
+        });
+
+        changeBtn.setOnAction(e -> {
+            Appointment apt = table.getSelectionModel().getSelectedItem();
+            if (apt == null) { showAlert("Notice", "Select a booking from the table first."); return; }
+            if (!"Pending".equals(apt.getStatus())) { showAlert("Notice", "Only pending bookings can be rescheduled."); return; }
+            if (apt.isWalkIn()) { showAlert("Notice", "Urgent walk-in cases have no fixed time slot to change."); return; }
+            if (newDate.getValue() == null || newSlot.getValue() == null) { showAlert("Error", "Pick a new date and time slot."); return; }
+
+            int slot = newSlot.getValue();
+            String date = newDate.getValue().toString();
+            if (ClinicAlgorithms.binarySearchTimeSlot(clinicTimeSlots, slot) == -1) { showAlert("Error", "Invalid Time Slot."); return; }
+            if (date.equals(apt.getDate()) && slot == apt.getTimeSlot()) { showAlert("Notice", "That is already the current booking time."); return; }
+            if (hasConflict(apt.getVetName(), date, slot, apt)) {
+                showAlert("Error", "That time slot is already booked for " + apt.getVetName() + ".");
+                return;
+            }
+
+            String oldDate = apt.getDate();
+            int oldSlot = apt.getTimeSlot();
+            apt.setDate(date);
+            apt.setTimeSlot(slot);
+            saveAllData();
+            undoStack.push(() -> {
+                apt.setDate(oldDate);
+                apt.setTimeSlot(oldSlot);
+                saveAllData();
+                afterChange.run();
+            });
+            afterChange.run();
+            showAlert("Booking Updated", apt.getPetName() + " moved from " + oldDate + " " + oldSlot + " to " + date + " " + slot + ".");
+        });
+
+        HBox bar = new HBox(10, lbl, newDate, newSlot, changeBtn);
+        bar.setAlignment(Pos.CENTER_LEFT);
+        return bar;
+    }
+
+    private static List<String[]> parseMedicalEntry(String entry) {
+        String[][] keys = { {"Date", "Date"}, {"Vet", "Veterinarian"}, {"Dx", "Diagnosis"},
+                {"Meds", "Medication"}, {"Fee", "Fee"}, {"Notes", "Notes"} };
+        List<String[]> fields = new ArrayList<>();
+        for (String part : entry.split(" \\| ")) {
+            boolean matched = false;
+            for (String[] k : keys) {
+                if (part.startsWith(k[0] + ": ")) {
+                    fields.add(new String[]{k[1], part.substring(k[0].length() + 2)});
+                    matched = true;
+                    break;
+                }
+            }
+            if (!matched) {
+                if (fields.isEmpty()) fields.add(new String[]{"Notes", part});
+                else { String[] last = fields.get(fields.size() - 1); last[1] = last[1] + " | " + part; }
+            }
+        }
+        return fields;
     }
 
     private HBox buildNavBar() { return buildNavBar(null); }
