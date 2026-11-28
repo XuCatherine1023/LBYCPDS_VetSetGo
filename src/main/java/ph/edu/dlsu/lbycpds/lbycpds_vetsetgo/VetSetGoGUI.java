@@ -462,7 +462,9 @@ public class VetSetGoGUI extends Application {
         VBox content = new VBox(20);
         content.setPadding(new Insets(20));
 
-        Label welcome = new Label("Veterinarian Dashboard | Dr. " + user.getFullName());
+        String myVetName = "Dr. " + user.getFullName();
+
+        Label welcome = new Label("Veterinarian Dashboard | " + myVetName);
         welcome.setFont(Font.font("System", FontWeight.BOLD, 22));
         welcome.setStyle("-fx-text-fill: #512DA8;");
 
@@ -472,8 +474,11 @@ public class VetSetGoGUI extends Application {
         queueCard.setStyle(CARD_STYLE); queueCard.setPadding(new Insets(20)); queueCard.setPrefWidth(350);
         Label qTitle = new Label("📅 Serve Next Patient"); qTitle.setFont(Font.font("System", FontWeight.BOLD, 16));
         qTitle.setStyle("-fx-text-fill: #512DA8;");
-        TextArea qLog = new TextArea(); qLog.setEditable(false); qLog.setPrefHeight(80);
+        TextArea qLog = new TextArea(); qLog.setEditable(false); qLog.setPrefHeight(100);
         Button serveBtn = new Button("Call Next Patient"); serveBtn.setStyle(BTN_PRIMARY);
+        Button passBtn = new Button("Pass Tied Case to Available Vet"); passBtn.setStyle(BTN_OUTLINE);
+        passBtn.setDisable(true);
+        HBox queueActionBtns = new HBox(10, serveBtn, passBtn);
 
         TextField dxField = new TextField(); dxField.setPromptText("Diagnosis");
         TextField medField = new TextField(); medField.setPromptText("Medication");
@@ -516,6 +521,13 @@ public class VetSetGoGUI extends Application {
         sevBox.getItems().addAll(1, 2, 3, 4, 5);
         sevBox.setValue(3);
         sevBox.setPromptText("Severity");
+        ComboBox<String> triageVetBox = new ComboBox<>();
+        for (User u : auth.getUsers().values()) {
+            if (u.getRole() == Role.VETERINARIAN) {
+                triageVetBox.getItems().add("Dr. " + u.getFullName());
+            }
+        }
+        triageVetBox.setValue(myVetName);
 
         HBox triageForm2 = new HBox(10);
         DatePicker tDate = new DatePicker(); tDate.setPromptText("Date");
@@ -525,9 +537,9 @@ public class VetSetGoGUI extends Application {
         TextField tReason = new TextField(); tReason.setPromptText("Reason");
         Button tBookBtn = new Button("Add to Queue"); tBookBtn.setStyle(BTN_PRIMARY);
 
-        triageForm1.getChildren().addAll(tPet, typeBox, sevBox);
+        triageForm1.getChildren().addAll(tPet, typeBox, sevBox, triageVetBox);
         triageForm2.getChildren().addAll(tDate, slotBox, tReason, tBookBtn);
-        Label bypassNote = new Label("Urgent cases bypass date/time-slot booking: no slot is needed, they are never blocked by a slot conflict, and any vet can take them next.");
+        Label bypassNote = new Label("Higher triage scores automatically bypass lower-score bookings in a vet's queue. If triage scores are equal, the vet may pass and select an available vet to take the booking.");
         bypassNote.setWrapText(true);
         bypassNote.setStyle("-fx-text-fill: #dc3545; -fx-font-style: italic;");
         triageCard.getChildren().addAll(triageTitle, triageForm1, triageForm2, bypassNote);
@@ -543,7 +555,7 @@ public class VetSetGoGUI extends Application {
 
         VBox scheduleCard = new VBox(10);
         scheduleCard.setStyle(CARD_STYLE); scheduleCard.setPadding(new Insets(20));
-        Label schedTitle = new Label("📋 Clinic Transactions & Appointments (All Veterinarians)"); schedTitle.setFont(Font.font("System", FontWeight.BOLD, 16));
+        Label schedTitle = new Label("📋 Clinic Transactions & Appointments"); schedTitle.setFont(Font.font("System", FontWeight.BOLD, 16));
         schedTitle.setStyle("-fx-text-fill: #512DA8;");
 
         ComboBox<String> vetFilter = new ComboBox<>();
@@ -551,7 +563,7 @@ public class VetSetGoGUI extends Application {
         for (User u : auth.getUsers().values()) {
             if (u.getRole() == Role.VETERINARIAN) vetFilter.getItems().add("Dr. " + u.getFullName());
         }
-        vetFilter.setValue(ALL_VETS);
+        vetFilter.setValue(myVetName);
         Label txSummary = new Label();
         txSummary.setStyle("-fx-font-weight: bold; -fx-text-fill: #512DA8;");
         Region filterSpacer = new Region(); HBox.setHgrow(filterSpacer, Priority.ALWAYS);
@@ -566,11 +578,12 @@ public class VetSetGoGUI extends Application {
         TableColumn<Appointment, String> vetCol = new TableColumn<>("Veterinarian"); vetCol.setCellValueFactory(new PropertyValueFactory<>("vetName"));
         TableColumn<Appointment, String> typeCol = new TableColumn<>("Case Type"); typeCol.setCellValueFactory(new PropertyValueFactory<>("caseType"));
         TableColumn<Appointment, Integer> sevCol = new TableColumn<>("Severity"); sevCol.setCellValueFactory(new PropertyValueFactory<>("severityLevel"));
+        TableColumn<Appointment, Integer> triageCol = new TableColumn<>("Triage Score"); triageCol.setCellValueFactory(new PropertyValueFactory<>("triageScore"));
         TableColumn<Appointment, String> reasonCol = new TableColumn<>("Reason"); reasonCol.setCellValueFactory(new PropertyValueFactory<>("reason"));
         TableColumn<Appointment, String> payCol = new TableColumn<>("Payment"); payCol.setCellValueFactory(new PropertyValueFactory<>("paymentMethod"));
         TableColumn<Appointment, Double> priceCol = new TableColumn<>("Price (₱)"); priceCol.setCellValueFactory(new PropertyValueFactory<>("price"));
         TableColumn<Appointment, String> statCol = new TableColumn<>("Status"); statCol.setCellValueFactory(new PropertyValueFactory<>("status"));
-        schedTable.getColumns().addAll(dateCol, timeCol, petCol, ownerCol, vetCol, typeCol, sevCol, reasonCol, payCol, priceCol, statCol);
+        schedTable.getColumns().addAll(dateCol, timeCol, petCol, ownerCol, vetCol, typeCol, sevCol, triageCol, reasonCol, payCol, priceCol, statCol);
         schedTable.setPrefHeight(280);
 
         Runnable refreshSchedule = () -> {
@@ -583,7 +596,26 @@ public class VetSetGoGUI extends Application {
                 list.add(a);
                 if ("Completed".equals(a.getStatus())) { completed++; revenue += a.getPrice(); }
             }
-            if (!list.isEmpty()) ClinicAlgorithms.quickSortAppointments(list, 0, list.size() - 1);
+            list.sort((a1, a2) -> {
+                boolean p1 = "Pending".equals(a1.getStatus());
+                boolean p2 = "Pending".equals(a2.getStatus());
+                if (p1 != p2) return p1 ? -1 : 1;
+                if (p1) {
+                    if (a1.getTriageScore() != a2.getTriageScore()) {
+                        return Integer.compare(a2.getTriageScore(), a1.getTriageScore());
+                    }
+                    int cmpDate = a1.getDate().compareTo(a2.getDate());
+                    if (cmpDate != 0) return cmpDate;
+                    if (a1.getTimeSlot() != a2.getTimeSlot()) {
+                        if (a1.isWalkIn()) return -1;
+                        if (a2.isWalkIn()) return 1;
+                        return Integer.compare(a1.getTimeSlot(), a2.getTimeSlot());
+                    }
+                    return Long.compare(a1.getArrivalTimestamp(), a2.getArrivalTimestamp());
+                }
+                int cmpDate = a1.getDate().compareTo(a2.getDate());
+                return cmpDate != 0 ? cmpDate : Integer.compare(a1.getTimeSlot(), a2.getTimeSlot());
+            });
             schedTable.getItems().setAll(list);
             txSummary.setText(String.format("Transactions: %d  |  Completed: %d  |  Revenue: ₱%.2f", list.size(), completed, revenue));
         };
@@ -593,8 +625,9 @@ public class VetSetGoGUI extends Application {
 
         tBookBtn.setOnAction(e -> {
             if (tPet.getText().trim().isEmpty()) { showAlert("Error", "Enter the pet's name."); return; }
+            String targetVet = triageVetBox.getValue() == null ? myVetName : triageVetBox.getValue();
             boolean urgent = "Urgent".equals(typeBox.getValue());
-            String myVetName = "Dr. " + user.getFullName();
+            int severity = sevBox.getValue() == null ? 3 : sevBox.getValue();
             String bookDate;
             int bookSlot;
 
@@ -605,10 +638,6 @@ public class VetSetGoGUI extends Application {
                 if (slotBox.getValue() == null || tDate.getValue() == null) { showAlert("Error", "Select a date and time slot"); return; }
                 bookDate = tDate.getValue().toString();
                 bookSlot = slotBox.getValue();
-                if (hasConflict(myVetName, bookDate, bookSlot, null)) {
-                    showAlert("Error", "Time slot already booked for this veterinarian.");
-                    return;
-                }
             }
 
             String ownerUser = "";
@@ -619,47 +648,143 @@ public class VetSetGoGUI extends Application {
                 }
             }
 
-            int severity = sevBox.getValue() == null ? 3 : sevBox.getValue();
-            Appointment apt = new Appointment(ownerUser, tPet.getText().trim(), typeBox.getValue(), severity, bookDate, bookSlot, myVetName, tReason.getText());
-            allAppointments.add(apt);
+            Appointment newApt = new Appointment(ownerUser, tPet.getText().trim(), typeBox.getValue(), severity, bookDate, bookSlot, targetVet, tReason.getText());
+            int newScore = newApt.getTriageScore();
+
+            List<Appointment> vetPending = new ArrayList<>();
+            for (Appointment a : allAppointments) {
+                if ("Pending".equals(a.getStatus()) && a.getVetName().equals(targetVet)) {
+                    vetPending.add(a);
+                }
+            }
+
+            int highestCurrentScore = -1;
+            for (Appointment a : vetPending) {
+                if (a.getTriageScore() > highestCurrentScore) {
+                    highestCurrentScore = a.getTriageScore();
+                }
+            }
+
+            Appointment slotConflictApt = urgent ? null : findConflictAppointment(targetVet, bookDate, bookSlot, null);
+
+            if (!vetPending.isEmpty() && newScore > highestCurrentScore) {
+                if (slotConflictApt != null) {
+                    String reassignedVet = chooseAvailableVet(targetVet, bookDate, bookSlot, "Slot " + bookSlot + " on " + bookDate + " is occupied by " + slotConflictApt.getPetName() + " (Triage " + slotConflictApt.getTriageScore() + "). New emergency has higher Triage Score (" + newScore + ").");
+                    if (reassignedVet != null) {
+                        slotConflictApt.setVetName(reassignedVet);
+                    } else {
+                        slotConflictApt.setTimeSlot(Appointment.WALK_IN_SLOT);
+                    }
+                }
+                allAppointments.add(newApt);
+                saveAllData();
+                refreshSchedule.run();
+                undoStack.push(() -> {
+                    allAppointments.remove(newApt);
+                    saveAllData();
+                    refreshSchedule.run();
+                });
+                showAlert("Emergency Priority Bypass", newApt.getPetName() + " (Triage Score: " + newScore + ") is higher than " + targetVet + "'s current bookings (Max: " + highestCurrentScore + ") and bypassed the queue.");
+                return;
+            }
+
+            if (!vetPending.isEmpty() && newScore == highestCurrentScore) {
+                String chosenVet = chooseAvailableVet(targetVet, urgent ? null : bookDate, urgent ? Appointment.WALK_IN_SLOT : bookSlot,
+                        targetVet + " already has a booking with an equal Triage Score (" + newScore + "). " + targetVet + " may pass this booking to an available veterinarian.");
+                if (chosenVet != null && !chosenVet.equals(targetVet)) {
+                    newApt.setVetName(chosenVet);
+                    allAppointments.add(newApt);
+                    saveAllData();
+                    refreshSchedule.run();
+                    undoStack.push(() -> {
+                        allAppointments.remove(newApt);
+                        saveAllData();
+                        refreshSchedule.run();
+                    });
+                    showAlert("Booking Passed", "Equal triage score (" + newScore + "). " + targetVet + " passed " + newApt.getPetName() + " to " + chosenVet + ".");
+                    return;
+                }
+            }
+
+            if (!urgent && slotConflictApt != null) {
+                if (newScore > slotConflictApt.getTriageScore()) {
+                    String movedVet = chooseAvailableVet(targetVet, bookDate, bookSlot,
+                            slotConflictApt.getPetName() + " (Triage " + slotConflictApt.getTriageScore() + ") is in this slot, but " + newApt.getPetName() + " has a higher Triage Score (" + newScore + ").");
+                    if (movedVet != null) {
+                        slotConflictApt.setVetName(movedVet);
+                    } else {
+                        slotConflictApt.setTimeSlot(Appointment.WALK_IN_SLOT);
+                    }
+                } else if (newScore == slotConflictApt.getTriageScore()) {
+                    String chosenVet = chooseAvailableVet(targetVet, bookDate, bookSlot,
+                            "Equal Triage Score (" + newScore + ") at this slot. " + targetVet + " can pass and choose an available vet for " + newApt.getPetName() + ".");
+                    if (chosenVet != null) {
+                        newApt.setVetName(chosenVet);
+                    } else {
+                        showAlert("Error", "No available veterinarian selected for this time slot.");
+                        return;
+                    }
+                } else {
+                    showAlert("Error", "Time slot already booked for " + targetVet + " by a higher or equal priority patient.");
+                    return;
+                }
+            }
+
+            allAppointments.add(newApt);
             saveAllData();
             refreshSchedule.run();
             undoStack.push(() -> {
-                allAppointments.remove(apt);
+                allAppointments.remove(newApt);
                 saveAllData();
                 refreshSchedule.run();
             });
-            showAlert("Success", urgent
-                    ? "Urgent case added. It bypassed slot booking and will be called first."
-                    : "Patient triaged and queued.");
+            showAlert("Success", "Patient added to " + newApt.getVetName() + "'s dashboard queue (Triage Score: " + newScore + ").");
         });
 
         serveBtn.setOnAction(e -> {
             activePatient = null;
-            List<Appointment> pending = new ArrayList<>();
-            for(Appointment a : allAppointments) {
-                if("Pending".equals(a.getStatus()) && (a.getVetName().equals("Dr. " + user.getFullName()) || a.isUrgent())) {
-                    pending.add(a);
+            passBtn.setDisable(true);
+            List<Appointment> myPending = new ArrayList<>();
+            for (Appointment a : allAppointments) {
+                if ("Pending".equals(a.getStatus()) && a.getVetName().equals(myVetName)) {
+                    myPending.add(a);
                 }
             }
-            if(!pending.isEmpty()) {
-                pending.sort((a1, a2) -> {
+            if (!myPending.isEmpty()) {
+                myPending.sort((a1, a2) -> {
                     if (a1.getTriageScore() != a2.getTriageScore())
                         return Integer.compare(a2.getTriageScore(), a1.getTriageScore());
                     return Long.compare(a1.getArrivalTimestamp(), a2.getArrivalTimestamp());
                 });
-                activePatient = pending.get(0);
-                String myVet = "Dr. " + user.getFullName();
-                String takeoverNote = "";
-                if (!activePatient.getVetName().equals(myVet)) {
-                    takeoverNote = "\nURGENT BYPASS: taken over from " + activePatient.getVetName();
-                    activePatient.setVetName(myVet);
-                    saveAllData();
-                    refreshSchedule.run();
+                activePatient = myPending.get(0);
+                boolean hasEqualScoreTie = false;
+                for (int i = 1; i < myPending.size(); i++) {
+                    if (myPending.get(i).getTriageScore() == activePatient.getTriageScore()) {
+                        hasEqualScoreTie = true;
+                        break;
+                    }
                 }
-                qLog.setText("Serving: " + activePatient.getPetName() + "\nTriage Score: " + activePatient.getTriageScore() + "\nReason: " + activePatient.getReason() + takeoverNote);
+                passBtn.setDisable(!hasEqualScoreTie);
+                String tieNote = hasEqualScoreTie ? "\nEqual Triage Score detected in queue: you may pass this case to an available vet." : "";
+                qLog.setText("Serving: " + activePatient.getPetName() + "\nCase: " + activePatient.getCaseType() + " (Severity " + activePatient.getSeverityLevel() + ")\nTriage Score: " + activePatient.getTriageScore() + "\nReason: " + activePatient.getReason() + tieNote);
             } else {
-                qLog.setText("No patients waiting.");
+                qLog.setText("No patients waiting in " + myVetName + "'s queue.");
+            }
+        });
+
+        passBtn.setOnAction(e -> {
+            if (activePatient == null) return;
+            String chosenVet = chooseAvailableVet(myVetName, activePatient.isWalkIn() ? null : activePatient.getDate(), activePatient.getTimeSlot(),
+                    myVetName + " has equal triage score bookings (" + activePatient.getTriageScore() + "). Select an available vet to receive " + activePatient.getPetName() + ":");
+            if (chosenVet != null && !chosenVet.equals(myVetName)) {
+                String passedPet = activePatient.getPetName();
+                activePatient.setVetName(chosenVet);
+                activePatient = null;
+                passBtn.setDisable(true);
+                qLog.setText("Passed " + passedPet + " to " + chosenVet + ".");
+                saveAllData();
+                refreshSchedule.run();
+                showAlert("Booking Passed", passedPet + " has been transferred to " + chosenVet + "'s dashboard.");
             }
         });
 
@@ -681,6 +806,7 @@ public class VetSetGoGUI extends Application {
                 saveAllData();
                 showAlert("Success", "Consultation complete. Details saved to pet's medical record.");
                 activePatient = null;
+                passBtn.setDisable(true);
                 qLog.setText("");
                 dxField.clear(); medField.clear(); docFee.clear();
                 refreshSchedule.run();
@@ -692,7 +818,7 @@ public class VetSetGoGUI extends Application {
         Label dxLabel = new Label("Diagnosis"); dxLabel.setStyle("-fx-font-weight: bold;");
         Label medLabel = new Label("Medication"); medLabel.setStyle("-fx-font-weight: bold;");
         Label feeLabel = new Label("Doctor Fee (₱)"); feeLabel.setStyle("-fx-font-weight: bold;");
-        queueCard.getChildren().addAll(qTitle, serveBtn, qLog, dxLabel, dxField, medLabel, medField, feeLabel, docFee, completeBtn);
+        queueCard.getChildren().addAll(qTitle, queueActionBtns, qLog, dxLabel, dxField, medLabel, medField, feeLabel, docFee, completeBtn);
         scheduleCard.getChildren().addAll(schedTitle, filterRow, schedTable, vetRescheduleBar);
 
         HBox searchForm = new HBox(10);
@@ -734,6 +860,48 @@ public class VetSetGoGUI extends Application {
         content.getChildren().addAll(welcome, split, triageCard, scheduleCard, searchLabel, searchForm, searchResultLog);
         root.setCenter(new ScrollPane(content));
         return new Scene(root, 1000, 850);
+    }
+
+    private String chooseAvailableVet(String currentVet, String date, int slot, String promptMessage) {
+        List<String> availableVets = new ArrayList<>();
+        for (User u : auth.getUsers().values()) {
+            if (u.getRole() == Role.VETERINARIAN) {
+                String vetFullName = "Dr. " + u.getFullName();
+                if (vetFullName.equals(currentVet)) continue;
+                if (date == null || slot == Appointment.WALK_IN_SLOT || !hasConflict(vetFullName, date, slot, null)) {
+                    availableVets.add(vetFullName);
+                }
+            }
+        }
+        if (availableVets.isEmpty()) {
+            return null;
+        }
+        availableVets.sort(Comparator.comparingInt(this::countPendingForVet));
+        ChoiceDialog<String> dialog = new ChoiceDialog<>(availableVets.get(0), availableVets);
+        dialog.setTitle("Pass Booking to Available Veterinarian");
+        dialog.setHeaderText("Equal Triage Score — Choose Available Veterinarian");
+        dialog.setContentText(promptMessage + "\nAvailable Vets:");
+        Optional<String> result = dialog.showAndWait();
+        return result.orElse(null);
+    }
+
+    private int countPendingForVet(String vetName) {
+        int count = 0;
+        for (Appointment a : allAppointments) {
+            if ("Pending".equals(a.getStatus()) && a.getVetName().equals(vetName)) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private Appointment findConflictAppointment(String vetName, String date, int slot, Appointment ignore) {
+        if (slot == Appointment.WALK_IN_SLOT) return null;
+        for (Appointment a : allAppointments) {
+            if (a == ignore || a.isWalkIn() || !"Pending".equals(a.getStatus())) continue;
+            if (a.getVetName().equals(vetName) && a.getDate().equals(date) && a.getTimeSlot() == slot) return a;
+        }
+        return null;
     }
 
     private static String slotText(int slot) {
